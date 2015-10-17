@@ -13,26 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.springframework.jobmanager.tasks;
+package org.springframework.jobmanager.machine;
 
-import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
-import org.springframework.shell.plugin.support.DefaultPromptProvider;
+import org.springframework.jobmanager.event.EventType;
+import org.springframework.shell.core.annotation.CliCommand;
+import org.springframework.shell.core.annotation.CliOption;
 import org.springframework.stereotype.Component;
 
 @Component
-@Order(Ordered.HIGHEST_PRECEDENCE)
-public class StateMachinePromptProvider extends DefaultPromptProvider {
+public class StateMachineCommands extends AbstractStateMachineCommands<States, EventType> {
 
-	@Override
-	public String getPrompt() {
-		return "sm>";
-	}
-
-
-	@Override
-	public String getProviderName() {
-		return "State machine prompt provider";
+	@CliCommand(value = "sm event", help = "Sends an event to a state machine")
+	public String event(@CliOption(key = { "", "event" }, mandatory = true, help = "The event") final EventType event) {
+		getStateMachine().sendEvent(event);
+		return "Event " + event + " send";
 	}
 
 }

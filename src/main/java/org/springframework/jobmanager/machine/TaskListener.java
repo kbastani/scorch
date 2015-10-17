@@ -1,5 +1,6 @@
-package org.springframework.jobmanager.tasks;
+package org.springframework.jobmanager.machine;
 
+import org.springframework.jobmanager.event.EventType;
 import org.springframework.statemachine.listener.StateMachineListenerAdapter;
 import org.springframework.statemachine.state.State;
 import org.springframework.statemachine.transition.Transition;
@@ -8,7 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 
-public class TaskListener extends StateMachineListenerAdapter<States, Events> {
+public class TaskListener extends StateMachineListenerAdapter<States, EventType> {
 
     final Object lock = new Object();
 
@@ -18,11 +19,11 @@ public class TaskListener extends StateMachineListenerAdapter<States, Events> {
     volatile CountDownLatch transitionLatch = new CountDownLatch(0);
     volatile int stateChangedCount = 0;
     volatile int transitionCount = 0;
-    List<State<States, Events>> statesEntered = new ArrayList<State<States, Events>>();
-    List<State<States, Events>> statesExited = new ArrayList<State<States, Events>>();
+    List<State<States, EventType>> statesEntered = new ArrayList<State<States, EventType>>();
+    List<State<States, EventType>> statesExited = new ArrayList<State<States, EventType>>();
 
     @Override
-    public void stateChanged(State<States, Events> from, State<States, Events> to) {
+    public void stateChanged(State<States, EventType> from, State<States, EventType> to) {
         synchronized (lock) {
             stateChangedCount++;
             stateChangedLatch.countDown();
@@ -30,7 +31,7 @@ public class TaskListener extends StateMachineListenerAdapter<States, Events> {
     }
 
     @Override
-    public void stateEntered(State<States, Events> state) {
+    public void stateEntered(State<States, EventType> state) {
         synchronized (lock) {
             statesEntered.add(state);
             stateEnteredLatch.countDown();
@@ -38,7 +39,7 @@ public class TaskListener extends StateMachineListenerAdapter<States, Events> {
     }
 
     @Override
-    public void stateExited(State<States, Events> state) {
+    public void stateExited(State<States, EventType> state) {
         synchronized (lock) {
             statesExited.add(state);
             stateExitedLatch.countDown();
@@ -46,7 +47,7 @@ public class TaskListener extends StateMachineListenerAdapter<States, Events> {
     }
 
     @Override
-    public void transitionEnded(Transition<States, Events> transition) {
+    public void transitionEnded(Transition<States, EventType> transition) {
         synchronized (lock) {
             transitionCount++;
             transitionLatch.countDown();

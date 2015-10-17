@@ -13,100 +13,108 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.springframework.jobmanager.tasks;
+package org.springframework.jobmanager.machine;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jobmanager.tasks.StateMachineConfiguration.StatesOnTransition;
+import org.springframework.jobmanager.event.EventType;
+import org.springframework.jobmanager.machine.StateMachineConfiguration.StatesOnTransition;
+import org.springframework.jobmanager.stage.Stage;
+import org.springframework.jobmanager.stage.StageRepository;
+import org.springframework.jobmanager.task.Task;
 import org.springframework.statemachine.ExtendedState;
 import org.springframework.statemachine.StateMachine;
 import org.springframework.statemachine.annotation.WithStateMachine;
+import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
 import java.io.Serializable;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 @WithStateMachine
+@Service
 public class Tasks implements Serializable {
+
+    @JsonProperty("tasks")
+    Stage stage;
 
 	@JsonIgnore
 	private final static Log log = LogFactory.getLog(Tasks.class);
 
+    @Autowired
+    private StageRepository stageRepository;
+
 	@JsonIgnore
 	@Autowired
-	private StateMachine<States, Events> stateMachine;
+	private StateMachine<States, EventType> stateMachine;
 
-	@JsonProperty("tasks")
-	private final Map<String, Task> tasks = new HashMap<>();
-
-	public Tasks() {
-		tasks.put("T1", new Task("T1", true));
-		tasks.put("T2", new Task("T2", true));
-		tasks.put("T3", new Task("T3", true));
-	}
+    public void init() {
+        stage = new Stage();
+        stage.addTask(new Task(true));
+        stage.addTask(new Task(true));
+        stage.addTask(new Task(true));
+        stage = stageRepository.save(stage);
+    }
 
 	public void run() {
-		stateMachine.sendEvent(Events.RUN);
+		stateMachine.sendEvent(EventType.RUN);
 	}
 
 	public void fix() {
-		tasks.put("T1", new Task("T1", true));
-		tasks.put("T2", new Task("T2", true));
-		tasks.put("T3", new Task("T3", true));
-		stateMachine.sendEvent(Events.FIX);
+		stage.getTasks().stream().forEach(task -> task.setActive(true));
+		stateMachine.sendEvent(EventType.FIX);
 	}
 
-	public void fail(String task) {
-		if (tasks.containsKey(task)) {
-			tasks.get(task).setActive(false);
-		}
+	public void fail(Long id) {
+		Optional<Task> task = stage.getTask(id);
+
+        if(task.isPresent()) {
+            task.get().setActive(false);
+        }
+
+        stageRepository.save(stage);
 	}
 
 	public void createTask(Task task) {
 		// Validate
 		Assert.notNull(task, "Task must not be null.");
-		Assert.notNull(task.getId(), "Task ID must not be empty or null.");
-		Assert.hasLength(task.getId(), "Task ID must not be empty or null.");
 
-		if(!tasks.containsKey(task.getId())) {
-			// Add
-			tasks.put(task.getId(), task);
-		} else {
-			Assert.state(true, "The task has already been added.");
-		}
+		stage.addTask(task);
+
+        stage = stageRepository.save(stage);
 	}
 
 	@StatesOnTransition(target = States.T1)
 	public void taskT1(ExtendedState extendedState) {
-		runTask("T1", extendedState);
+		runTask(0L, extendedState);
 	}
 
 	@StateMachineConfiguration.StatesOnTransition(target = States.T2)
 	public void taskT2(ExtendedState extendedState) {
-		runTask("T2", extendedState);
+		runTask(1L, extendedState);
 	}
 
 	@StatesOnTransition(target = States.T3)
 	public void taskT3(ExtendedState extendedState) {
-		runTask("T3", extendedState);
+		runTask(2L, extendedState);
 	}
 
 	@StatesOnTransition(target = States.AUTOMATIC)
 	public void automaticFix(ExtendedState extendedState) {
 		Map<Object, Object> variables = extendedState.getVariables();
-		variables.put("T1", true);
-		tasks.put("T1", tasks.getOrDefault("T1", new Task("T1", true)));
+		variables.put(0L, true);
+		stage.getTask(0L).get().setActive(true);
 	}
 
-	private void runTask(String task, ExtendedState extendedState) {
-		log.info("run task on " + task);
+	private void runTask(Long id, ExtendedState extendedState) {
+		log.info("run task on " + id);
 		sleep(2000);
-		extendedState.getVariables().put(task, tasks.get(task));
-		log.info("run task on " + task + " done");
+		extendedState.getVariables().put(id, stage.getTask(id).get());
+		log.info("run task on " + id + " done");
 	}
 
 	private static void sleep(long millis) {
@@ -118,7 +126,7 @@ public class Tasks implements Serializable {
 
 	@Override
 	public String toString() {
-		return "Tasks " + tasks;
+		return "Tasks " + stage.toString();
 	}
 
 }

@@ -13,19 +13,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.springframework.jobmanager.tasks;
+package org.springframework.jobmanager.machine;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.shell.core.CommandMarker;
 import org.springframework.shell.core.annotation.CliCommand;
 import org.springframework.shell.core.annotation.CliOption;
 import org.springframework.stereotype.Component;
 
 @Component
-public class StateMachineCommands extends AbstractStateMachineCommands<States, Events> {
+public class TasksCommands implements CommandMarker {
 
-	@CliCommand(value = "sm event", help = "Sends an event to a state machine")
-	public String event(@CliOption(key = { "", "event" }, mandatory = true, help = "The event") final Events event) {
-		getStateMachine().sendEvent(event);
-		return "Event " + event + " send";
+	@Autowired
+	private Tasks tasks;
+
+	@CliCommand(value = "tasks run", help = "Run tasks")
+	public void run() {
+		tasks.run();
+	}
+
+	@CliCommand(value = "tasks list", help = "List tasks")
+	public String list() {
+		return tasks.toString();
+	}
+
+	@CliCommand(value = "tasks fix", help = "Fix tasks")
+	public void fix() {
+		tasks.fix();
+	}
+
+	@CliCommand(value = "tasks fail", help = "Fail task")
+	public void fail(@CliOption(key = {"", "task"}, help = "Task id") Long id) {
+		tasks.fail(id);
 	}
 
 }

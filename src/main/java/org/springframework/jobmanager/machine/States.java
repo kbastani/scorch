@@ -1,4 +1,4 @@
-package org.springframework.jobmanager.tasks;
+package org.springframework.jobmanager.machine;
 
 public enum States {
 	READY,

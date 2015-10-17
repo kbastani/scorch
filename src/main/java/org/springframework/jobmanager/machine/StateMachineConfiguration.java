@@ -13,11 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.springframework.jobmanager.tasks;
+package org.springframework.jobmanager.machine;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.DependsOn;
 import org.springframework.core.task.TaskExecutor;
+import org.springframework.jobmanager.event.EventType;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.statemachine.StateContext;
 import org.springframework.statemachine.StateMachineSystemConstants;
@@ -36,16 +38,18 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.util.Map;
 
+
 @Configuration
+@DependsOn("stageRepository")
 public class StateMachineConfiguration {
 
 	@Configuration
 	@EnableStateMachine
 	static class StateMachineConfig
-			extends EnumStateMachineConfigurerAdapter<States, Events> {
+			extends EnumStateMachineConfigurerAdapter<States, EventType> {
 
 		@Override
-		public void configure(StateMachineStateConfigurer<States, Events> states)
+		public void configure(StateMachineStateConfigurer<States, EventType> states)
 				throws Exception {
 			states
 				.withStates()
@@ -79,12 +83,12 @@ public class StateMachineConfiguration {
 		}
 
 		@Override
-		public void configure(StateMachineTransitionConfigurer<States, Events> transitions)
+		public void configure(StateMachineTransitionConfigurer<States, EventType> transitions)
 				throws Exception {
 			transitions
 				.withExternal()
 					.source(States.READY).target(States.FORK)
-					.event(Events.RUN)
+					.event(EventType.RUN)
 					.and()
 				.withFork()
 					.source(States.FORK).target(States.TASKS)
@@ -111,24 +115,24 @@ public class StateMachineConfiguration {
 					.and()
 				.withExternal()
 					.source(States.ERROR).target(States.READY)
-					.event(Events.CONTINUE)
+					.event(EventType.CONTINUE)
 					.and()
 				.withExternal()
 					.source(States.AUTOMATIC).target(States.MANUAL)
-					.event(Events.FALLBACK)
+					.event(EventType.FALLBACK)
 					.and()
 				.withInternal()
 					.source(States.MANUAL)
 					.action(fixAction())
-					.event(Events.FIX);
+					.event(EventType.FIX);
 		}
 
 		@Bean
-		public Guard<States, Events> tasksChoiceGuard() {
-			return new Guard<States, Events>() {
+		public Guard<States, EventType> tasksChoiceGuard() {
+			return new Guard<States, EventType>() {
 
 				@Override
-				public boolean evaluate(StateContext<States, Events> context) {
+				public boolean evaluate(StateContext<States, EventType> context) {
 					Map<Object, Object> variables = context.getExtendedState().getVariables();
 					return !(ObjectUtils.nullSafeEquals(variables.get("T1"), true)
 							&& ObjectUtils.nullSafeEquals(variables.get("T2"), true)
@@ -138,43 +142,37 @@ public class StateMachineConfiguration {
 		}
 
 		@Bean
-		public Action<States, Events> automaticAction() {
-			return new Action<States, Events>() {
+		public Action<States, EventType> automaticAction() {
+			return new Action<States, EventType>() {
 
 				@Override
-				public void execute(StateContext<States, Events> context) {
+				public void execute(StateContext<States, EventType> context) {
 					Map<Object, Object> variables = context.getExtendedState().getVariables();
 					if (ObjectUtils.nullSafeEquals(variables.get("T1"), true)
 							&& ObjectUtils.nullSafeEquals(variables.get("T2"), true)
 							&& ObjectUtils.nullSafeEquals(variables.get("T3"), true)) {
-						context.getStateMachine().sendEvent(Events.CONTINUE);
+						context.getStateMachine().sendEvent(EventType.CONTINUE);
 					} else {
-						context.getStateMachine().sendEvent(Events.FALLBACK);
+						context.getStateMachine().sendEvent(EventType.FALLBACK);
 					}
 				}
 			};
 		}
 
 		@Bean
-		public Action<States, Events> fixAction() {
-			return new Action<States, Events>() {
+		public Action<States, EventType> fixAction() {
+			return new Action<States, EventType>() {
 
 				@Override
-				public void execute(StateContext<States, Events> context) {
+				public void execute(StateContext<States, EventType> context) {
 					Map<Object, Object> variables = context.getExtendedState().getVariables();
 					variables.put("T1", true);
 					variables.put("T2", true);
 					variables.put("T3", true);
-					context.getStateMachine().sendEvent(Events.CONTINUE);
+					context.getStateMachine().sendEvent(EventType.CONTINUE);
 				}
 			};
 		}
-
-		@Bean
-		public Tasks tasks() {
-			return new Tasks();
-		}
-
 
 		@Bean(name = StateMachineSystemConstants.TASK_EXECUTOR_BEAN_NAME)
 		public TaskExecutor taskExecutor() {
