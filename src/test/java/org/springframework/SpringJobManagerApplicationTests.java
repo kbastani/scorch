@@ -36,7 +36,7 @@ public class SpringJobManagerApplicationTests {
         Job job = new Job();
         // Create a set of tasks to track a job
         Stage stage = new Stage(Status.READY);
-        stage.addTask(new Task());
+        stage.addTask(new Task(true, Status.READY));
         job.getStages().add(stage);
 
         job = jobRepository.save(job);
@@ -45,5 +45,7 @@ public class SpringJobManagerApplicationTests {
 
         log.info( EventType.BEGIN.toString());
 	}
+
+
 
 }

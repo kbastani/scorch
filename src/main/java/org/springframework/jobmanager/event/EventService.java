@@ -29,5 +29,5 @@ public interface EventService {
      *
      * @param event is the event object
      */
-    void notify(Event event);
+    boolean sendEvent(Event event);
 }
