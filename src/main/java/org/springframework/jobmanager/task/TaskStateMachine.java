@@ -92,7 +92,7 @@ public class TaskStateMachine implements Serializable {
         stage = stageRepository.save(stage);
     }
 
-    @StatesOnTransition(source = Status.READY, target = Status.RUNNING)
+    @StatesOnTransition(target = Status.RUNNING)
     public void taskBegin(ExtendedState extendedState) {
         runTask(1L, extendedState);
     }
@@ -109,7 +109,7 @@ public class TaskStateMachine implements Serializable {
             // Queue event to stage
         }
 
-        extendedState.getVariables().put(1L, task);
+        variables.put(1L, task);
     }
 
     private void runTask(Long id, ExtendedState extendedState) {

@@ -39,6 +39,9 @@ public class TaskListener extends StateMachineListenerAdapter<Status, EventType>
             } else if (containsState(from, Status.READY) && containsState(to, Status.STARTED)) {
                 // Transition from stored state
                 stateMachine.sendEvent(EventType.END);
+            } else if (containsState(from, Status.STARTED) && containsState(to, Status.RUNNING)) {
+                // Transition from stored state
+                stateMachine.sendEvent(EventType.CONTINUE);
             }
         }
     }

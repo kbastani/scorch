@@ -24,4 +24,12 @@ public interface JobService {
      * @return the newly create {@link Job}
      */
     Job createJob(Job job);
+
+    /**
+     * Create a new {@link Task}
+     * @param stageId is the id of the job stage to add the new task to
+     * @param task is the new task to create
+     * @return the newly created {@link Task}
+     */
+    Task createTask(Long stageId, Task task);
 }
