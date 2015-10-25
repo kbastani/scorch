@@ -1,0 +1,26 @@
+spring:
+  application:
+    name: scorch
+  jackson:
+    serialization:
+      indent_output: true
+  data:
+    rest:
+      basePath: /v1/repositories
+  cloud:
+    zookeeper:
+      connect-string: 192.168.99.100:2181
+
+spring.cloud.zookeeper:
+  dependencies:
+    scorch:
+      path: /scorch
+      loadBalancerType: ROUND_ROBIN
+      contentTypeTemplate: application/json
+      version: v1
+      headers:
+        header1:
+            - value1
+        header2:
+            - value2
+      required: true
