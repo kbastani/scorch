@@ -1,5 +1,6 @@
 package org.springframework.scorch;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import org.junit.After;
@@ -11,9 +12,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.SpringApplicationConfiguration;
 import org.springframework.http.MediaType;
+import org.springframework.scorch.event.Event;
 import org.springframework.scorch.event.EventType;
 import org.springframework.scorch.job.Job;
-import org.springframework.scorch.job.JobRepository;
 import org.springframework.scorch.machine.Status;
 import org.springframework.scorch.stage.Stage;
 import org.springframework.scorch.task.Task;
@@ -37,7 +38,7 @@ public class ScorchApplicationTests {
     private Logger log = LoggerFactory.getLogger(ScorchApplicationTests.class);
 
     @Autowired
-    JobRepository jobRepository;
+    ObjectMapper objectMapper;
 
     @Autowired
     ZookeeperClient zookeeperClient;
@@ -61,18 +62,21 @@ public class ScorchApplicationTests {
         Job job = new Job();
         // Create a set of tasks to track a job
         Stage stage = new Stage(Status.READY);
+
         job.getStages().add(stage);
 
         log.info("Creating job with single stage...");
 
-        job = new Gson().fromJson(mockMvc.perform(post("/v1/job/jobs")
-                .content(this.json(job))
+        String createdJobs = mockMvc.perform(post("/v1/job/jobs")
+                .content(objectMapper.writeValueAsString(job))
                 .contentType(MediaType.APPLICATION_JSON_VALUE))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString(), Job.class);
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+
+        job = objectMapper.readValue(createdJobs, Job.class);
 
         log.info(String.format("Job created: %s", job.toString()));
 
-        Long stageId = job.getStages().stream()
+        String stageId = job.getStages().stream()
                 .findFirst()
                 .get()
                 .getId();
@@ -80,13 +84,17 @@ public class ScorchApplicationTests {
         log.info(String.format("Adding task to stage with id '%s'...", stageId));
 
         String taskResult = mockMvc.perform(post(String.format("/v1/job/stages/%s/tasks", stageId))
-                .content(this.json(new Task(false, Status.READY)))
+                .content(objectMapper.writeValueAsString(new Task(false)))
                 .contentType(MediaType.APPLICATION_JSON_VALUE))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
 
-        Task task = new Gson().fromJson(taskResult, Task.class);
+        Task task = objectMapper.readValue(taskResult, Task.class);
 
-        log.info(task.toString());
+        Event event = new Event();
+        event.setEventType(EventType.RUN);
+        event.setTargetId(task.getId());
+        event.setId("");
+        log.info(objectMapper.writeValueAsString(event));
     }
 
     @After
@@ -94,25 +102,9 @@ public class ScorchApplicationTests {
         try {
             zookeeperClient.close();
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error(e.getMessage(), e);
         }
     }
-
-	@Test
-	public void testTaskWorkflow() {
-
-        Job job = new Job();
-        // Create a set of tasks to track a job
-        Stage stage = new Stage(Status.READY);
-        stage.addTask(new Task(true, Status.READY));
-        job.getStages().add(stage);
-
-        job = jobRepository.save(job);
-
-        log.info(job.toString());
-
-        log.info( EventType.BEGIN.toString());
-	}
 
     protected String json(Object o) throws IOException {
         Gson gson = new GsonBuilder().setPrettyPrinting().create();

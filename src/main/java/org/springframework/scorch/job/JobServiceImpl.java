@@ -1,11 +1,14 @@
 package org.springframework.scorch.job;
 
+import com.fatboyindustrial.gsonjodatime.Converters;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.scorch.machine.Status;
 import org.springframework.scorch.stage.Stage;
-import org.springframework.scorch.stage.StageRepository;
+import org.springframework.scorch.task.StateMachineRepository;
 import org.springframework.scorch.task.Task;
-import org.springframework.scorch.task.TaskRepository;
 import org.springframework.scorch.zookeeper.ZookeeperClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,29 +21,25 @@ import java.util.stream.Collectors;
 @Service
 public class JobServiceImpl implements JobService {
 
-    private JobRepository jobRepository;
-    private StageRepository stageRepository;
-    private TaskRepository taskRepository;
     private ZookeeperClient zookeeperClient;
     private RedisTemplate<String, Object> redisTemplate;
+    final Gson gson = Converters.registerDateTime(new GsonBuilder()).create();
 
     @Autowired
-    public JobServiceImpl(JobRepository jobRepository, StageRepository stageRepository,
-                          TaskRepository taskRepository, ZookeeperClient zookeeperClient,
+    public JobServiceImpl(ZookeeperClient zookeeperClient,
                           RedisTemplate<String, Object> redisTemplate) {
-        this.jobRepository = jobRepository;
-        this.stageRepository = stageRepository;
-        this.taskRepository = taskRepository;
         this.zookeeperClient = zookeeperClient;
         this.redisTemplate = redisTemplate;
     }
 
     @Override
-    public List<Task> getTasks(Long jobId) {
-        return jobRepository.findOne(jobId).getStages()
-                .stream()
-                .flatMap(s -> s.getTasks().stream())
+    public List<Task> getTasks(String jobId) {
+        Job job = zookeeperClient.get(Job.class, jobId);
+        List<Task> tasks = job.getStages().stream()
+                .flatMap(t -> t.getTasks().stream())
+                .map(m -> zookeeperClient.get(Task.class, m.getId()))
                 .collect(Collectors.toList());
+        return tasks;
     }
 
     /**
@@ -51,14 +50,28 @@ public class JobServiceImpl implements JobService {
      */
     @Override
     public Job createJob(Job job) {
+        // Save the job to redis
+        addJob(job.getId(), job);
 
-        // Save the job to the permanent data store
-        Job savedJob = jobRepository.save(job);
+        // Save job, stages, and tasks to zookeeper
+        zookeeperClient.save(job);
+        job.getStages().forEach(s -> {
+            zookeeperClient.save(s);
+            s.setStatus(Status.STARTED);
+            s.getTasks().forEach(t -> {
+                t.setStatus(Status.PENDING);
+                zookeeperClient.save(t);
+                StateMachineRepository.getStateMachineBean(t.getId()).start();
+            });
+        });
 
-        // Save job to zookeeper
-        zookeeperClient.save(savedJob);
+        return job;
+    }
 
-        return savedJob;
+    public void addJob(String jobId, Job object) {
+        if (!redisTemplate.opsForValue().setIfAbsent(jobId, gson.toJson(object))) {
+            throw new IllegalArgumentException("Job with id already exists...");
+        }
     }
 
     /**
@@ -68,24 +81,34 @@ public class JobServiceImpl implements JobService {
      * @return a distributed {@link Job} and its associated state
      */
     @Override
-    public Job getJob(Long id) {
-        return null;
+    public Job getJob(String id) {
+        // Job job = getFromStore(id);
+        return zookeeperClient.get(Job.class, id);
+    }
+
+    private Job getFromStore(String id) {
+        Job job = gson.fromJson(redisTemplate.opsForValue().get(id).toString(), Job.class);
+
+        if (job == null) {
+            redisTemplate.opsForValue().getAndSet(id, job);
+        }
+        return job;
     }
 
     /**
      * Create a new {@link Task}
      *
      * @param stageId is the id of the stage to add the new task to
-     * @param task  is the new task to create
+     * @param task    is the new task to create
      * @return the newly created {@link Task}
      */
     @Override
-    public Task createTask(Long stageId, Task task) {
-        Stage stage = stageRepository.findOne(stageId);
+    public Task createTask(String stageId, Task task) {
+        Stage stage = zookeeperClient.get(Stage.class, stageId);
         Assert.notNull(stage, "The job stage does not exist.");
-        Task savedTask = taskRepository.save(task);
-        stage.addTask(savedTask);
-        stageRepository.save(stage);
-        return savedTask;
+        stage.addTask(task);
+        zookeeperClient.save(task);
+        zookeeperClient.save(stage);
+        return task;
     }
 }

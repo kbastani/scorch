@@ -154,7 +154,7 @@ public class TaskStateMachineConfiguration {
         @Bean(name = StateMachineSystemConstants.TASK_EXECUTOR_BEAN_NAME)
         public TaskExecutor taskExecutor() {
             ThreadPoolTaskExecutor taskExecutor = new ThreadPoolTaskExecutor();
-            taskExecutor.setCorePoolSize(5);
+            taskExecutor.setCorePoolSize(40);
             return taskExecutor;
         }
 

@@ -1,50 +1,61 @@
 package org.springframework.scorch.audit;
 
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.JsonFormat;
 
-import javax.persistence.EntityListeners;
-import javax.persistence.MappedSuperclass;
+import java.io.Serializable;
+import java.util.Date;
+import java.util.UUID;
 
 /**
- * An entity base class that is used for auditing purposes,
+ * An entity base class that is used for auditing purposes.
  *
  * @author Kenny Bastani
  */
-@MappedSuperclass
-@EntityListeners(AuditingEntityListener.class)
-public class AbstractEntity {
+@JsonAutoDetect
+public class AbstractEntity implements Serializable {
 
-    @CreatedDate
-    private Long createdAt;
-
-    @LastModifiedDate
-    private Long lastModified;
+    private String id;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSZ")
+    private Date createdAt;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSZ")
+    private Date lastModified;
 
     public AbstractEntity() {
+        this.createdAt = new Date();
+        this.lastModified = new Date(createdAt.getTime());
+        this.id = UUID.randomUUID().toString();
     }
 
-    public Long getCreatedAt() {
+    public String getId() {
+        return id;
+    }
+
+    public void setId(String id) {
+        this.id = id;
+    }
+
+    public Date getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(Long createdAt) {
+    public void setCreatedAt(Date createdAt) {
         this.createdAt = createdAt;
     }
 
-    public Long getLastModified() {
+    public Date getLastModified() {
         return lastModified;
     }
 
-    public void setLastModified(Long lastModified) {
+    public void setLastModified(Date lastModified) {
         this.lastModified = lastModified;
     }
 
     @Override
     public String toString() {
-        return "BaseEntity{" +
-                "createdAt=" + createdAt +
+        return "AbstractEntity{" +
+                "id='" + id + '\'' +
+                ", createdAt=" + createdAt +
                 ", lastModified=" + lastModified +
                 '}';
     }

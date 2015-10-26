@@ -1,22 +1,35 @@
 package org.springframework.scorch.machine;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.scorch.event.EventType;
-import org.springframework.statemachine.StateMachine;
+import org.springframework.scorch.task.StateMachineRepository;
+import org.springframework.scorch.task.Task;
+import org.springframework.scorch.zookeeper.ZookeeperClient;
 import org.springframework.statemachine.listener.StateMachineListenerAdapter;
 import org.springframework.statemachine.state.State;
 import org.springframework.statemachine.transition.Transition;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 
 public class TaskListener extends StateMachineListenerAdapter<Status, EventType> {
 
     final Object lock = new Object();
-    private StateMachine<Status, EventType> stateMachine;
+    public boolean ready = false;
+    private String taskId;
+    ZookeeperClient zookeeperClient;
+    final ConcurrentLinkedQueue<EventType> queue = new ConcurrentLinkedQueue<EventType>();
+    private final static Log log = LogFactory.getLog(StateMachineListenerAdapter.class);
 
-    public TaskListener(StateMachine<Status, EventType> stateMachine) {
-        this.stateMachine = stateMachine;
+    public TaskListener(String taskId) {
+        this.taskId = taskId;
+        this.zookeeperClient = (ZookeeperClient) StateMachineRepository.applicationContext.getBean("zookeeperClient");
+        TaskExecutor taskExecutor = (TaskExecutor) StateMachineRepository.applicationContext.getBean("taskExecutor");
+        taskExecutor.execute(this::observeQueue);
     }
 
     volatile CountDownLatch stateChangedLatch = new CountDownLatch(1);
@@ -28,22 +41,33 @@ public class TaskListener extends StateMachineListenerAdapter<Status, EventType>
     List<State<Status, EventType>> statesEntered = new ArrayList<State<Status, EventType>>();
     List<State<Status, EventType>> statesExited = new ArrayList<State<Status, EventType>>();
 
+    public ConcurrentLinkedQueue<EventType> getQueue() {
+        return queue;
+    }
+
     @Override
     public void stateChanged(State<Status, EventType> from, State<Status, EventType> to) {
-        synchronized (lock) {
-            stateChangedCount++;
-            stateChangedLatch.countDown();
-            if(from == null && containsState(to, Status.READY)) {
-                // Transition from stored state
-                stateMachine.sendEvent(EventType.RUN);
-            } else if (containsState(from, Status.READY) && containsState(to, Status.STARTED)) {
-                // Transition from stored state
-                stateMachine.sendEvent(EventType.END);
-            } else if (containsState(from, Status.STARTED) && containsState(to, Status.RUNNING)) {
-                // Transition from stored state
-                stateMachine.sendEvent(EventType.CONTINUE);
-            }
+        stateChangedCount++;
+
+        Task task = zookeeperClient.get(Task.class, taskId);
+        task.setStatus(to.getId());
+        if (zookeeperClient.get(Task.class, task.getId()).getStatus() != task.getStatus()) {
+            zookeeperClient.save(task);
         }
+        log.info(task);
+        log.info(queue);
+
+//            if(from == null && containsState(to, Status.READY)) {
+//                // Transition from stored state
+//                StateMachineRepository.getStateMachineBean(taskId).sendEvent(EventType.RUN);
+//            }
+//            else if (containsState(from, Status.READY) && containsState(to, Status.STARTED)) {
+//                // Transition from stored state
+//                stateMachine.sendEvent(EventType.END);
+//            } else if (containsState(from, Status.STARTED) && containsState(to, Status.RUNNING)) {
+//                // Transition from stored state
+//                stateMachine.sendEvent(EventType.CONTINUE);
+//            }
     }
 
     private boolean containsState(State<Status, EventType> state, Status status) {
@@ -52,18 +76,16 @@ public class TaskListener extends StateMachineListenerAdapter<Status, EventType>
 
     @Override
     public void stateEntered(State<Status, EventType> state) {
-        synchronized (lock) {
-            statesEntered.add(state);
-            stateEnteredLatch.countDown();
-        }
+        ready = true;
+        statesEntered.add(state);
+        stateEnteredLatch.countDown();
     }
 
     @Override
     public void stateExited(State<Status, EventType> state) {
-        synchronized (lock) {
-            statesExited.add(state);
-            stateExitedLatch.countDown();
-        }
+        ready = false;
+        statesExited.add(state);
+        stateExitedLatch.countDown();
     }
 
     @Override
@@ -74,20 +96,15 @@ public class TaskListener extends StateMachineListenerAdapter<Status, EventType>
         }
     }
 
-    public void reset(int c1, int c2, int c3) {
-        reset(c1, c2, c3, 0);
-    }
+    public void observeQueue() {
 
-    public void reset(int c1, int c2, int c3, int c4) {
-        synchronized (lock) {
-            stateChangedLatch = new CountDownLatch(c1);
-            stateEnteredLatch = new CountDownLatch(c2);
-            stateExitedLatch = new CountDownLatch(c3);
-            transitionLatch = new CountDownLatch(c4);
-            stateChangedCount = 0;
-            transitionCount = 0;
-            statesEntered.clear();
-            statesExited.clear();
+        while (true) {
+            if (ready && !StateMachineRepository.getTaskListener(taskId).getQueue().isEmpty()) {
+                synchronized (lock) {
+                    StateMachineRepository.getTaskListener(taskId).getQueue().removeIf(event -> StateMachineRepository.getStateMachineBean(taskId).sendEvent(event));
+                }
+            }
+
         }
     }
 }

@@ -20,6 +20,7 @@ import org.apache.commons.logging.LogFactory;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.scorch.zookeeper.ZookeeperClient;
 import org.springframework.statemachine.event.OnStateEntryEvent;
 import org.springframework.statemachine.event.OnStateExitEvent;
 import org.springframework.statemachine.event.StateMachineEvent;
@@ -31,14 +32,19 @@ public class CommonConfiguration {
 
     @Configuration
     static class ApplicationConfig {
-
         @Bean
-        public TestEventListener testEventListener() {
-            return new TestEventListener();
+        public TestEventListener testEventListener(ZookeeperClient zookeeperClient) {
+            return new TestEventListener(zookeeperClient);
         }
     }
 
     static class TestEventListener implements ApplicationListener<StateMachineEvent> {
+
+        private ZookeeperClient zookeeperClient;
+
+        public TestEventListener(ZookeeperClient zookeeperClient) {
+            this.zookeeperClient = zookeeperClient;
+        }
 
         @Override
         public void onApplicationEvent(StateMachineEvent event) {

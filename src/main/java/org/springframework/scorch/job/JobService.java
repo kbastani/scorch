@@ -15,9 +15,9 @@ public interface JobService {
     /**
      * Get all tasks for a given {@link Job} ID.
      *
-     * @return a set of tasks that belong to a {@link Job}.
+     * @return a set of tasks that beString to a {@link Job}.
      */
-    List<Task> getTasks(Long jobId);
+    List<Task> getTasks(String jobId);
 
     /**
      * Create a new {@link Job}.
@@ -33,7 +33,7 @@ public interface JobService {
      * @param id is the identifier for the {@link Job}
      * @return a distributed {@link Job} and its associated state
      */
-    Job getJob(Long id);
+    Job getJob(String id);
 
     /**
      * Create a new {@link Task}
@@ -42,5 +42,5 @@ public interface JobService {
      * @param task    is the new task to create
      * @return the newly created {@link Task}
      */
-    Task createTask(Long stageId, Task task);
+    Task createTask(String stageId, Task task);
 }

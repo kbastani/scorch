@@ -5,6 +5,8 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 
+import java.util.Arrays;
+
 /**
  * The default Zookeeper watcher for event processing from the
  * Zookeeper cluster. This watcher is responsible for monitoring
@@ -16,8 +18,10 @@ public class ZookeeperWatcher implements Watcher {
 
     private final static Log log = LogFactory.getLog(ZookeeperWatcher.class);
 
+
+
     @Override
     public void process(WatchedEvent event) {
-        log.info(event);
+        log.info(Arrays.asList(event, event.getPath(), event.getState(), event.getType()));
     }
 }

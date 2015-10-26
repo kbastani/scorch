@@ -30,13 +30,11 @@ import java.util.Optional;
 public class JobController extends HypermediaController {
 
     private JobService jobService;
-    private JobRepository jobRepository;
 
     @Autowired
-    public JobController(JobService jobService, JobRepository jobRepository) {
+    public JobController(JobService jobService) {
         super("/v1/job/jobs");
         this.jobService = jobService;
-        this.jobRepository = jobRepository;
     }
 
     @RequestMapping(path = "/jobs", method = RequestMethod.POST)
@@ -46,20 +44,20 @@ public class JobController extends HypermediaController {
     }
 
     @RequestMapping(path = "/jobs/{jobId}", method = RequestMethod.GET)
-    public HttpEntity<?> getJob(@PathVariable("jobId") Long jobId) {
-        return Optional.of(jobRepository.findOne(jobId)).map(u -> new ResponseEntity<>(u, HttpStatus.OK))
+    public HttpEntity<?> getJob(@PathVariable("jobId") String jobId) {
+        return Optional.of(jobService.getJob(jobId)).map(u -> new ResponseEntity<>(u, HttpStatus.OK))
                 .orElse(new ResponseEntity<>(HttpStatus.BAD_REQUEST));
     }
 
     @RequestMapping(path = "/jobs/{jobId}/tasks", method = RequestMethod.GET)
-    public HttpEntity<?> getTasks(@PathVariable("jobId") Long jobId) {
+    public HttpEntity<?> getTasks(@PathVariable("jobId") String jobId) {
         return Optional.of(jobService.getTasks(jobId))
                 .map(u -> new ResponseEntity<>((ArrayList) u, HttpStatus.OK))
                 .orElse(new ResponseEntity<>(HttpStatus.BAD_REQUEST));
     }
 
     @RequestMapping(path = "/stages/{stageId}/tasks", method = RequestMethod.POST)
-    public HttpEntity<?> createTask(@PathVariable("stageId") Long stageId, @RequestBody Task task) {
+    public HttpEntity<?> createTask(@PathVariable("stageId") String stageId, @RequestBody Task task) {
         return Optional.of(jobService.createTask(stageId, task))
                 .map(u -> new ResponseEntity<>(task, HttpStatus.CREATED))
                 .orElse(new ResponseEntity<>(HttpStatus.BAD_REQUEST));

@@ -7,14 +7,15 @@ import org.springframework.cloud.client.SpringCloudApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
-import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.scorch.task.TaskReplicator;
 import org.springframework.scorch.task.TaskStateMachine;
 import org.springframework.scorch.zookeeper.ZookeeperClient;
 
 @SpringCloudApplication
-@EnableJpaAuditing
 public class ScorchApplication {
 
     private final static Log log = LogFactory.getLog(ScorchApplication.class);
@@ -28,6 +29,18 @@ public class ScorchApplication {
         RedisTemplate<String, Object> redisTemplate = new RedisTemplate<>();
         redisTemplate.setConnectionFactory(connectionFactory);
         return redisTemplate;
+    }
+
+    @Bean(name = "taskExecutor")
+    public TaskExecutor taskExecutor() {
+        ThreadPoolTaskExecutor taskExecutor = new ThreadPoolTaskExecutor();
+        taskExecutor.setCorePoolSize(40);
+        return taskExecutor;
+    }
+
+    @Bean(initMethod = "init")
+    TaskReplicator taskReplicator() {
+        return new TaskReplicator();
     }
 
     @Bean(name = "taskStateMachine", initMethod = "init")

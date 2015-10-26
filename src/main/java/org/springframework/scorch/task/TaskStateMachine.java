@@ -16,118 +16,80 @@
 package org.springframework.scorch.task;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.BeansException;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.scorch.event.EventType;
 import org.springframework.scorch.machine.Status;
-import org.springframework.scorch.stage.Stage;
-import org.springframework.scorch.stage.StageRepository;
 import org.springframework.scorch.task.TaskStateMachineConfiguration.StatesOnTransition;
 import org.springframework.statemachine.ExtendedState;
 import org.springframework.statemachine.StateMachine;
 import org.springframework.statemachine.annotation.WithStateMachine;
-import org.springframework.statemachine.config.StateMachineFactory;
-import org.springframework.util.Assert;
 
 import java.io.Serializable;
-import java.util.Map;
-import java.util.Optional;
 
 @WithStateMachine(name = "taskMachine")
 @AutoConfigureBefore
 @Order(Ordered.LOWEST_PRECEDENCE)
-public class TaskStateMachine implements Serializable {
-
-    @JsonProperty("task")
-    Stage stage;
+public class TaskStateMachine implements Serializable, ApplicationContextAware {
 
     @JsonIgnore
     private final static Log log = LogFactory.getLog(TaskStateMachine.class);
+    private ApplicationContext applicationContext;
 
-    @Autowired
-    private TaskRepository taskRepository;
-
-    @Autowired
-    private StageRepository stageRepository;
-
-    @Autowired
-    private StateMachineFactory<Status, EventType> stateMachineFactory;
-
-    private StateMachine<Status, EventType> taskMachine;
-
-    public void run() {
-        taskMachine.sendEvent(EventType.RUN);
+    public void run(String id) {
+        StateMachine<Status, EventType> stateMachine = getStateMachineById(id);
+        if (stateMachine != null) {
+            stateMachine.sendEvent(EventType.RUN);
+        }
     }
 
-    public void fix() {
-        stage.getTasks().stream().forEach(task -> task.setActive(true));
-        taskMachine.sendEvent(EventType.FIX);
+    private StateMachine<Status, EventType> getStateMachineById(String id) {
+        Object stateMachineBean = applicationContext.getBean(id);
+        StateMachine<Status, EventType> stateMachine = null;
+        if (stateMachineBean != null && stateMachineBean instanceof StateMachine) {
+            stateMachine = (StateMachine<Status, EventType>) stateMachineBean;
+        }
+        return stateMachine;
+    }
+
+    public void fix(String id) {
+        StateMachine<Status, EventType> stateMachine = getStateMachineById(id);
+        if (stateMachine != null)
+            stateMachine.sendEvent(EventType.FIX);
     }
 
     public void init() {
-         taskMachine = stateMachineFactory.getStateMachine();
     }
 
-    public void fail(Long id) {
-        Optional<Task> task = stage.getTask(id);
-
-        if (task.isPresent()) {
-            task.get().setActive(false);
-        }
-
-        stageRepository.save(stage);
+    public void fail(String id) {
     }
 
     public void createTask(Task task) {
-        // Validate
-        Assert.notNull(task, "Task must not be null.");
-
-        stage.addTask(task);
-
-        stage = stageRepository.save(stage);
     }
 
     @StatesOnTransition(target = Status.RUNNING)
     public void taskBegin(ExtendedState extendedState) {
-        runTask(1L, extendedState);
+        runTask(extendedState.get("id", String.class), extendedState);
     }
 
     @StatesOnTransition(target = Status.FINISHED)
     public void taskFinish(ExtendedState extendedState) {
-        Map<Object, Object> variables = extendedState.getVariables();
-
-        Task task = (Task)variables.get(1L);
-
-        if(task != null) {
-            task.setState(Status.FINISHED);
-            taskRepository.save(task);
-            // Queue event to stage
-        }
-
-        variables.put(1L, task);
     }
 
-    private void runTask(Long id, ExtendedState extendedState) {
+    private void runTask(String id, ExtendedState extendedState) {
         log.info("run task on " + id);
-        extendedState.getVariables().put(id, taskRepository.findOne(id));
+        //extendedState.getVariables().put(id, taskRepository.findOne(id));
         log.info("run task on " + id + " done");
     }
 
-    private static void sleep(long millis) {
-        try {
-            Thread.sleep(millis);
-        } catch (InterruptedException e) {
-        }
-    }
-
     @Override
-    public String toString() {
-        return "Tasks " + stage.toString();
+    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+        this.applicationContext = applicationContext;
     }
-
 }

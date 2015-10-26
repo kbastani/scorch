@@ -1,13 +1,14 @@
 package org.springframework.scorch.zookeeper;
 
-import org.apache.commons.lang.SerializationUtils;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import com.fatboyindustrial.gsonjodatime.*;
 import org.apache.zookeeper.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
@@ -27,6 +28,7 @@ public class ZookeeperClient implements AutoCloseable {
     private String applicationName;
 
     private final static Log log = LogFactory.getLog(ZookeeperClient.class);
+    final Gson gson = Converters.registerDateTime(new GsonBuilder()).create();
 
     private boolean initialized;
     private ZooKeeper zooKeeper;
@@ -48,18 +50,24 @@ public class ZookeeperClient implements AutoCloseable {
      * Gets or creates the root node, which is the name of the Spring application.
      */
     private void getOrCreateRoot() {
-        if(root == null)
+        if (root == null)
             root = "/".concat(applicationName);
 
         // Get or create root node for each required path
-        List<String> paths = Arrays.asList(root,
-                root.concat("/job"),
+        List<String> paths = Arrays.asList(root.concat("/job"),
                 root.concat("/stage"),
-                root.concat("/task"));
+                root.concat("/task"),
+                root.concat("/event"));
 
+        createNode(root);
         paths.forEach(this::createNode);
     }
 
+    /**
+     * Create a node at the path in {@link ZooKeeper}.
+     *
+     * @param path is the location of the node
+     */
     private void createNode(String path) {
         // Open zookeeper transaction
         Transaction transaction = zooKeeper.transaction();
@@ -81,7 +89,11 @@ public class ZookeeperClient implements AutoCloseable {
      */
     private boolean reconnect(String zookeeperHost) {
         try {
-            zooKeeper = new ZooKeeper(zookeeperHost, 2000, zookeeperWatcher);
+            if (zooKeeper != null && zooKeeper.getState().isAlive()) {
+                return true;
+            } else {
+                zooKeeper = new ZooKeeper(zookeeperHost, 2000, zookeeperWatcher);
+            }
             initialized = true;
         } catch (IOException e) {
             log.error(e.getMessage(), e);
@@ -116,7 +128,11 @@ public class ZookeeperClient implements AutoCloseable {
      * @return the managed {@link ZooKeeper} client
      */
     public ZooKeeper getZooKeeper() {
-        return zooKeeper;
+        if(connect()) {
+            return zooKeeper;
+        } else {
+            return null;
+        }
     }
 
     /**
@@ -148,9 +164,20 @@ public class ZookeeperClient implements AutoCloseable {
      *
      * @param object is the object to synchronize on the {@link ZooKeeper} cluster
      */
-    public <T extends Distributed> void save(T object) {
-        if(initialized) {
-            byte[] data = SerializationUtils.serialize(object);
+    public <T extends Distributed> boolean save(T object) {
+        return save(object, CreateMode.PERSISTENT);
+    }
+
+    /**
+     * Save the state of an object on the {@link ZooKeeper} cluster.
+     *
+     * @param object     is the object to synchronize on the {@link ZooKeeper} cluster
+     * @param createMode is the mode that the {@link ZooKeeper} node should save the object
+     */
+    public <T extends Distributed> boolean save(T object, CreateMode createMode) {
+        boolean success = false;
+        if (connect()) {
+            byte[] data = gson.toJson(object).getBytes();
 
             // Get the distributed object's zookeeper path
             String elementPath = String.format("%s/%s/%s", root,
@@ -158,56 +185,77 @@ public class ZookeeperClient implements AutoCloseable {
 
             try {
                 // Create a new version of the zookeeper distributed object
-                zooKeeper.create(elementPath, data,
-                        ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT_SEQUENTIAL);
+                if (zooKeeper.exists(elementPath, false) == null) {
+                    zooKeeper.create(elementPath, data, ZooDefs.Ids.OPEN_ACL_UNSAFE, createMode);
+                } else {
+                    zooKeeper.setData(elementPath, data, -1);
+                }
+
+                success = true;
             } catch (KeeperException | InterruptedException e) {
-                e.printStackTrace();
+                log.error(e.getMessage(), e);
             }
         }
+
+        return success;
+    }
+
+    /**
+     * Get an object from the {@link ZooKeeper} cluster.
+     *
+     * @param clazz is the class that the object should be deserialized to
+     * @param key   is the key of the object to get from the {@link ZooKeeper} cluster
+     * @param <T>   is the {@link Distributed} object type to get
+     * @return a {@link Distributed} object from {@link ZooKeeper}
+     */
+    public <T extends Distributed> T get(Class<T> clazz, String key) {
+        T obj = null;
+
+        if (connect()) {
+            // Get the distributed object's zookeeper path
+            String elementPath = String.format("%s/%s/%s", root, clazz.getSimpleName().toLowerCase(), key);
+
+            try {
+                // Create a new version of the zookeeper distributed object
+                obj = gson.fromJson(new String(zooKeeper.getData(elementPath, zookeeperWatcher, null)), clazz);
+            } catch (KeeperException | InterruptedException e) {
+                log.error(e.getMessage(), e);
+            }
+        }
+
+        return obj;
+    }
+
+    /**
+     * Get an object from the {@link ZooKeeper} cluster.
+     *
+     * @param clazz is the class that the object should be deserialized to
+     * @param key   is the key of the object to get from the {@link ZooKeeper} cluster
+     * @param <T>   is the {@link Distributed} object type to get
+     * @return a {@link Distributed} object from {@link ZooKeeper}
+     */
+    public <T extends Distributed> T get(Class<T> clazz, String key, boolean watch) {
+        T obj = null;
+
+        if (connect()) {
+            // Get the distributed object's zookeeper path
+            String elementPath = String.format("%s/%s/%s", root, clazz.getSimpleName().toLowerCase(), key);
+
+            try {
+                // Create a new version of the zookeeper distributed object
+                obj = gson.fromJson(new String(zooKeeper.getData(elementPath, watch ? zookeeperWatcher : null, null)), clazz);
+            } catch (KeeperException | InterruptedException e) {
+                log.error(e.getMessage(), e);
+            }
+        }
+
+        return obj;
     }
 
     /**
      * Closes this resource, relinquishing any underlying resources.
      * This method is invoked automatically on objects managed by the
      * {@code try}-with-resources statement.
-     * <p>
-     * <p>While this interface method is declared to throw {@code
-     * Exception}, implementers are <em>strongly</em> encouraged to
-     * declare concrete implementations of the {@code close} method to
-     * throw more specific exceptions, or to throw no exception at all
-     * if the close operation cannot fail.
-     * <p>
-     * <p> Cases where the close operation may fail require careful
-     * attention by implementers. It is strongly advised to relinquish
-     * the underlying resources and to internally <em>mark</em> the
-     * resource as closed, prior to throwing the exception. The {@code
-     * close} method is unlikely to be invoked more than once and so
-     * this ensures that the resources are released in a timely manner.
-     * Furthermore it reduces problems that could arise when the resource
-     * wraps, or is wrapped, by another resource.
-     * <p>
-     * <p><em>Implementers of this interface are also strongly advised
-     * to not have the {@code close} method throw {@link
-     * InterruptedException}.</em>
-     * <p>
-     * This exception interacts with a thread's interrupted status,
-     * and runtime misbehavior is likely to occur if an {@code
-     * InterruptedException} is {@linkplain Throwable#addSuppressed
-     * suppressed}.
-     * <p>
-     * More generally, if it would cause problems for an
-     * exception to be suppressed, the {@code AutoCloseable.close}
-     * method should not throw it.
-     * <p>
-     * <p>Note that unlike the {@link Closeable#close close}
-     * method of {@link Closeable}, this {@code close} method
-     * is <em>not</em> required to be idempotent.  In other words,
-     * calling this {@code close} method more than once may have some
-     * visible side effect, unlike {@code Closeable.close} which is
-     * required to have no effect if called more than once.
-     * <p>
-     * However, implementers of this interface are strongly encouraged
-     * to make their {@code close} methods idempotent.
      *
      * @throws Exception if this resource cannot be closed
      */

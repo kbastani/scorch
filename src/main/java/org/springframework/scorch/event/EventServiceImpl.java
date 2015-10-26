@@ -1,9 +1,8 @@
 package org.springframework.scorch.event;
 
+import org.apache.zookeeper.CreateMode;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scorch.machine.Status;
-import org.springframework.statemachine.StateMachine;
-import org.springframework.statemachine.config.StateMachineFactory;
+import org.springframework.scorch.zookeeper.ZookeeperClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,15 +17,11 @@ import java.util.List;
 @Service
 @Transactional
 public class EventServiceImpl implements EventService {
-
-    private StateMachineFactory<Status, EventType> stateMachineFactory;
-
-    private StateMachine<Status, EventType> stateMachine;
+    private ZookeeperClient zookeeperClient;
 
     @Autowired
-    public EventServiceImpl(StateMachineFactory<Status, EventType> taskMachine) {
-        this.stateMachineFactory = taskMachine;
-        this.stateMachine = taskMachine.getStateMachine();
+    public EventServiceImpl(ZookeeperClient zookeeperClient) {
+        this.zookeeperClient = zookeeperClient;
     }
 
     /**
@@ -57,6 +52,6 @@ public class EventServiceImpl implements EventService {
      */
     @Override
     public boolean sendEvent(Event event) {
-        return stateMachine.sendEvent(event.getEventType());
+        return zookeeperClient.save(event, CreateMode.PERSISTENT_SEQUENTIAL);
     }
 }

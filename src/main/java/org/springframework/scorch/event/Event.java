@@ -1,6 +1,8 @@
 package org.springframework.scorch.event;
 
-import java.io.Serializable;
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import lombok.*;
+import org.springframework.scorch.zookeeper.Distributed;
 
 /**
  * An {@link Event} is ingested to the {@link EventService} and applied to
@@ -9,31 +11,17 @@ import java.io.Serializable;
  *
  * @author Kenny Bastani
  */
-public class Event implements Serializable {
+@Data
+@ToString
+@NoArgsConstructor
+@JsonAutoDetect
+public class Event implements Distributed {
 
+    private String id;
+
+    @NonNull
     private EventType eventType;
-    private Long targetId;
 
-    public Event() {
-    }
-
-    public Event(EventType eventType) {
-        this.eventType = eventType;
-    }
-
-    public EventType getEventType() {
-        return eventType;
-    }
-
-    public void setEventType(EventType eventType) {
-        this.eventType = eventType;
-    }
-
-    public Long getTargetId() {
-        return targetId;
-    }
-
-    public void setTargetId(Long targetId) {
-        this.targetId = targetId;
-    }
+    @NonNull
+    private String targetId;
 }

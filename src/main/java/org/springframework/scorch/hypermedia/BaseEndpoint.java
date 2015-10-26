@@ -1,9 +1,7 @@
 package org.springframework.scorch.hypermedia;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
-import org.springframework.data.rest.core.mapping.RepositoryResourceMappings;
 import org.springframework.hateoas.Link;
 import org.springframework.hateoas.Resources;
 import org.springframework.http.MediaType;
@@ -30,9 +28,6 @@ import static org.springframework.hateoas.mvc.ControllerLinkBuilder.linkTo;
 public class BaseEndpoint implements ApplicationContextAware {
 
     private ApplicationContext context;
-
-    @Autowired
-    RepositoryResourceMappings repositoryResourceMappings;
 
     public BaseEndpoint() {
     }
