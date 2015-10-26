@@ -54,20 +54,7 @@ public class TaskListener extends StateMachineListenerAdapter<Status, EventType>
         if (zookeeperClient.get(Task.class, task.getId()).getStatus() != task.getStatus()) {
             zookeeperClient.save(task);
         }
-        log.info(task);
         log.info(queue);
-
-//            if(from == null && containsState(to, Status.READY)) {
-//                // Transition from stored state
-//                StateMachineRepository.getStateMachineBean(taskId).sendEvent(EventType.RUN);
-//            }
-//            else if (containsState(from, Status.READY) && containsState(to, Status.STARTED)) {
-//                // Transition from stored state
-//                stateMachine.sendEvent(EventType.END);
-//            } else if (containsState(from, Status.STARTED) && containsState(to, Status.RUNNING)) {
-//                // Transition from stored state
-//                stateMachine.sendEvent(EventType.CONTINUE);
-//            }
     }
 
     private boolean containsState(State<Status, EventType> state, Status status) {
@@ -97,14 +84,12 @@ public class TaskListener extends StateMachineListenerAdapter<Status, EventType>
     }
 
     public void observeQueue() {
-
         while (true) {
             if (ready && !StateMachineRepository.getTaskListener(taskId).getQueue().isEmpty()) {
                 synchronized (lock) {
                     StateMachineRepository.getTaskListener(taskId).getQueue().removeIf(event -> StateMachineRepository.getStateMachineBean(taskId).sendEvent(event));
                 }
             }
-
         }
     }
 }

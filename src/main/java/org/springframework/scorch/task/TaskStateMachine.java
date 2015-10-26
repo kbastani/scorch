@@ -83,9 +83,6 @@ public class TaskStateMachine implements Serializable, ApplicationContextAware {
     }
 
     private void runTask(String id, ExtendedState extendedState) {
-        log.info("run task on " + id);
-        //extendedState.getVariables().put(id, taskRepository.findOne(id));
-        log.info("run task on " + id + " done");
     }
 
     @Override
