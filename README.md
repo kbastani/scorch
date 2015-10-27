@@ -6,7 +6,7 @@ This project provides a management API that exposes stateful operations for dist
 
 Scorch provides consistency guarantees and a global event transaction log that is sequentially ordered using ZooKeeper. Events are sent to Scorch from a cluster of services using a globally unique target ID and an event type. A RabbitMQ message queue is sent durable state change notifications from Scorch as events change the state of an object's state machine.
 
-There is no need to worry about maintaining local state of objects in your cluster. State change notifications are subscribed to and when a notification of the desired state of an object is received, it confirms that that a multi-phase commit was made.
+There is no need to worry about maintaining local state of objects in your cluster. State change notifications are subscribed to and when a notification of the desired state of an object is received, it confirms that a multi-phase commit was made.
 
 The status of a job is also always consistent, allowing subscribers to passively and actively monitor state changes over HTTP or RabbitMQ.
 
@@ -40,7 +40,7 @@ A user of an online banking platform's website registers for a new account. When
 
 Each backend service is highly available and in the form of a REST API, meaning that each application is running on multiple servers that are load balanced in a round robin fashion. When user registers, the frontend's microservice will orchestrate the creation of the new user's account. Let's call this service the *UI Service*.
 
-The UI service will first create a record of the user's new account. The initial state of the user's account is **SUBMITTED** and is stored in the UI service's exclusive database.
+The UI service will first create a record of the user's new account. The initial state of the user's account is **SUBMITTED** and is stored in the *UI Service's* exclusive database.
 
 The *UI Service* now needs to call the *Registration Service* to register the new user with the host system of the bank. The *Registration Service* then needs to orchestrate multiple calls (multi-phase commit) to two other microservices.
 
