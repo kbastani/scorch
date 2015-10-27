@@ -6,6 +6,8 @@ spring:
 ---
 server:
   port: 8081
+ribbon:
+  ReadTimeout: 6000
 endpoints:
   restart:
     enabled: true
@@ -21,11 +23,11 @@ spring:
     serialization-inclusion: non_null
   cloud:
     zookeeper:
-      connect-string: "192.168.99.100:2181"
+      connect-string: "192.168.59.103:2181"
       discovery:
-        instanceHost: "192.168.99.100:2181"
-        ipAddress: "192.168.99.100:2181"
+        instanceHost: "192.168.59.103:2181"
+        ipAddress: "192.168.59.103:2181"
         enabled: true
-        connectString: "192.168.99.100:2181"
+        connectString: "192.168.59.103:2181"
   rabbitmq:
-    addresses: "amqp://192.168.99.100:5672"
+    addresses: "amqp://192.168.59.103:5672"

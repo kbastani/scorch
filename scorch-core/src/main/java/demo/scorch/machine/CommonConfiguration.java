@@ -45,7 +45,6 @@ public class CommonConfiguration {
         @Override
         public void onApplicationEvent(StateMachineEvent event) {
             if (event instanceof OnStateEntryEvent) {
-                //rabbitTemplate.convertAndSend(queueName, "Hello from RabbitMQ!");
                 OnStateEntryEvent e = (OnStateEntryEvent) event;
                 log.info("Entry state " + e.getState().getId());
                 log.info("Entry state -- " + e.getSource());

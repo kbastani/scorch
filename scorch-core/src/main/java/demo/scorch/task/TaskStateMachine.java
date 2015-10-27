@@ -23,11 +23,8 @@ import demo.scorch.message.StateChange;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.ApplicationContextAware;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.statemachine.ExtendedState;
@@ -44,12 +41,11 @@ import java.io.Serializable;
 @WithStateMachine(name = "taskMachine")
 @AutoConfigureBefore
 @Order(Ordered.LOWEST_PRECEDENCE)
-public class TaskStateMachine implements Serializable, ApplicationContextAware {
+public class TaskStateMachine implements Serializable {
 
     @JsonIgnore
     private final static Log log = LogFactory.getLog(TaskStateMachine.class);
     public static final String QUEUE_NAME = "scorch.actions";
-    private ApplicationContext applicationContext;
     private RabbitTemplate rabbitTemplate;
     private ObjectMapper objectMapper;
 
@@ -94,10 +90,5 @@ public class TaskStateMachine implements Serializable, ApplicationContextAware {
                 log.error(e);
             }
         }
-    }
-
-    @Override
-    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
-        this.applicationContext = applicationContext;
     }
 }
