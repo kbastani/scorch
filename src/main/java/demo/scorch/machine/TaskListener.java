@@ -35,8 +35,10 @@ public class TaskListener extends StateMachineListenerAdapter<Status, EventType>
     @Override
     public void stateChanged(State<Status, EventType> from, State<Status, EventType> to) {
         Task task = zookeeperClient.get(Task.class, taskId);
-        task.setStatus(to.getId());
-        if (zookeeperClient.get(Task.class, task.getId()).getStatus() != task.getStatus()) {
+
+        if (!zookeeperClient.get(Task.class, task.getId()).getStatus().equals(to.getId()) &&
+                (from != null ? from.getId() : Status.READY) == task.getStatus()) {
+            task.setStatus(to.getId());
             zookeeperClient.save(task);
         }
 
