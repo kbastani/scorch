@@ -16,10 +16,15 @@
 package demo.scorch.task;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import demo.scorch.machine.Status;
+import demo.scorch.message.StateChange;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
@@ -43,22 +48,52 @@ public class TaskStateMachine implements Serializable, ApplicationContextAware {
 
     @JsonIgnore
     private final static Log log = LogFactory.getLog(TaskStateMachine.class);
+    public static final String QUEUE_NAME = "scorch.actions";
     private ApplicationContext applicationContext;
+    private RabbitTemplate rabbitTemplate;
+    private ObjectMapper objectMapper;
+
+    @Autowired
+    public TaskStateMachine(RabbitTemplate rabbitTemplate, ObjectMapper objectMapper) {
+        this.rabbitTemplate = rabbitTemplate;
+        this.objectMapper = objectMapper;
+    }
 
     public void init() {
-
     }
 
     @TaskStateMachineConfiguration.StatesOnTransition(target = Status.RUNNING)
     public void taskBegin(ExtendedState extendedState) {
         // Perform action associated with state change to running
-        log.info("Task state transitioned to RUNNING");
+        log.info(String.format("Task state transitioned to RUNNING: %s", extendedState.getVariables().keySet()));
+
+        // Get taskId
+        String taskId = (String) extendedState.getVariables().getOrDefault("id", null);
+
+        if(taskId != null) {
+            try {
+                rabbitTemplate.convertAndSend(QUEUE_NAME, objectMapper.writeValueAsString(new StateChange(taskId, Status.STARTED, Status.RUNNING)));
+            } catch (JsonProcessingException e) {
+                log.error(e);
+            }
+        }
     }
 
     @TaskStateMachineConfiguration.StatesOnTransition(target = Status.FINISHED)
     public void taskFinish(ExtendedState extendedState) {
         // Perform action associated with state change to finished
         log.info("Task state transitioned to FINISHED");
+
+        // Get taskId
+        String taskId = (String) extendedState.getVariables().getOrDefault("id", null);
+
+        if(taskId != null) {
+            try {
+                rabbitTemplate.convertAndSend(QUEUE_NAME, objectMapper.writeValueAsString(new StateChange(taskId, Status.RUNNING, Status.FINISHED)));
+            } catch (JsonProcessingException e) {
+                log.error(e);
+            }
+        }
     }
 
     @Override

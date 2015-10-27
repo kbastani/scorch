@@ -1,0 +1,31 @@
+spring:
+  application:
+    name: scorchclient
+  profiles:
+    active: local
+---
+server:
+  port: 8081
+endpoints:
+  restart:
+    enabled: true
+  shutdown:
+    enabled: true
+  health:
+    sensitive: false
+spring:
+  profiles: local
+  jackson:
+    serialization:
+      indent_output: true
+    serialization-inclusion: non_null
+  cloud:
+    zookeeper:
+      connect-string: "192.168.99.100:2181"
+      discovery:
+        instanceHost: "192.168.99.100:2181"
+        ipAddress: "192.168.99.100:2181"
+        enabled: true
+        connectString: "192.168.99.100:2181"
+  rabbitmq:
+    addresses: "amqp://192.168.99.100:5672"

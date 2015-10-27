@@ -4,6 +4,8 @@ spring:
   profiles:
     active: local
 ---
+server:
+  port: 8787
 endpoints:
   restart:
     enabled: true
@@ -18,15 +20,15 @@ spring:
       indent_output: true
   data:
     rest:
-      basePath: /v1/repositories
+      basePath: "/v1/repositories"
   cloud:
     zookeeper:
-      connect-string: 192.168.99.100:2181
+      connect-string: "192.168.99.100:2181"
       dependencies:
         scorch:
-          path: /scorch
+          path: "/scorch"
           loadBalancerType: ROUND_ROBIN
-          contentTypeTemplate: application/json
+          contentTypeTemplate: "application/json"
           version: v1
   rabbitmq:
-    addresses: amqp://192.168.99.100:5672
+    addresses: "amqp://192.168.99.100:5672"

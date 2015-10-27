@@ -1,5 +1,6 @@
 package demo.scorch;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import demo.scorch.task.TaskReplicator;
 import demo.scorch.task.TaskStateMachine;
 import demo.scorch.zookeeper.ZookeeperClient;
@@ -7,6 +8,7 @@ import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.TopicExchange;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.cloud.client.SpringCloudApplication;
 import org.springframework.context.annotation.Bean;
@@ -32,8 +34,8 @@ public class ScorchApplication {
 
     @Bean(name = "taskStateMachine", initMethod = "init")
     @Order(Ordered.HIGHEST_PRECEDENCE)
-    public TaskStateMachine taskStateMachine() {
-        return new TaskStateMachine();
+    public TaskStateMachine taskStateMachine(RabbitTemplate rabbitTemplate, ObjectMapper objectMapper) {
+        return new TaskStateMachine(rabbitTemplate, objectMapper);
     }
 
     @Bean(initMethod = "init")

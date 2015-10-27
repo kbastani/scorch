@@ -14,12 +14,11 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class TaskListener extends StateMachineListenerAdapter<Status, EventType> {
 
-    final Object lock = new Object();
+    ConcurrentLinkedQueue<EventType> queue = new ConcurrentLinkedQueue<EventType>();
     private final TaskExecutor taskExecutor;
-    public boolean ready = false;
     private String taskId;
     private ZookeeperClient zookeeperClient;
-    ConcurrentLinkedQueue<EventType> queue = new ConcurrentLinkedQueue<EventType>();
+
     private final static Log log = LogFactory.getLog(StateMachineListenerAdapter.class);
 
     public TaskListener(String taskId) {
@@ -36,30 +35,27 @@ public class TaskListener extends StateMachineListenerAdapter<Status, EventType>
     public void stateChanged(State<Status, EventType> from, State<Status, EventType> to) {
         Task task = zookeeperClient.get(Task.class, taskId);
 
+        // If the task is rebuilding state, do not save state to ZooKeeper
         if (!zookeeperClient.get(Task.class, task.getId()).getStatus().equals(to.getId()) &&
                 (from != null ? from.getId() : Status.READY) == task.getStatus()) {
             task.setStatus(to.getId());
             zookeeperClient.save(task);
         }
 
-        if(!queue.isEmpty()) {
+        if (!queue.isEmpty()) {
             queue.removeIf(event -> StateMachineRepository.getStateMachineBean(taskId).sendEvent(event));
         } else {
             // Watch
             this.taskExecutor.execute(() -> {
                 boolean runOnce = true;
                 while (runOnce) {
-                    if(!queue.isEmpty()) {
+                    if (!queue.isEmpty()) {
                         runOnce = !StateMachineRepository.getStateMachineBean(taskId).sendEvent(queue.remove());
                     }
                 }
             });
         }
 
-        log.info(queue);
-    }
-
-    private boolean containsState(State<Status, EventType> state, Status status) {
-        return state.getStates().stream().anyMatch(a -> a.getId() == status);
+        log.info(String.format("Task %s: %s", taskId, queue));
     }
 }

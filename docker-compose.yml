@@ -1,0 +1,19 @@
+rabbit:
+  image: rabbitmq:3-management
+  hostname: rabbit
+  ports:
+    - "8080:15672"
+    - "5672:5672"
+zookeeper:
+  image: jplock/zookeeper
+  hostname: zookeeper
+  ports:
+    - "3888:3888"
+    - "2888:2888"
+    - "2181:2181"
+scorch:
+  image: kbastani/scorch
+  hostname: scorch
+  links:
+    - zookeeper
+    - rabbit

@@ -3,20 +3,23 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>org.springframework</groupId>
-    <artifactId>scorch</artifactId>
+    <groupId>org.kbastani</groupId>
+    <artifactId>scorch-parent</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <packaging>jar</packaging>
+    <packaging>pom</packaging>
 
-    <name>scorch</name>
-    <description>Scorch is a task manager as a distributed state machine service.</description>
-
+    <name>scorch-parent</name>
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <version>1.3.0.RC1</version>
         <relativePath/>
     </parent>
+
+    <modules>
+        <module>scorch-core</module>
+        <module>scorch-samples</module>
+    </modules>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -68,11 +71,6 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.springframework.statemachine</groupId>
-            <artifactId>spring-statemachine-core</artifactId>
-            <version>${spring-statemachine-core.version}</version>
-        </dependency>
-        <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-zookeeper-discovery</artifactId>
             <version>${spring-statemachine-core.version}</version>
@@ -83,15 +81,6 @@
             <version>${zookeeper.version}</version>
         </dependency>
     </dependencies>
-
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-            </plugin>
-        </plugins>
-    </build>
 
     <repositories>
         <repository>

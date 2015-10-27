@@ -39,6 +39,7 @@ public class StateMachineRepository implements ApplicationContextAware {
                 TaskListener taskListener = new TaskListener(objectId);
                 sm.addStateListener(taskListener);
                 taskListenerCache.put(objectId, taskListener);
+                sm.getExtendedState().getVariables().put("id", objectId);
                 sm.start();
                 return sm;
             });
