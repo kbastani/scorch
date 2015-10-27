@@ -16,7 +16,6 @@
 package demo.scorch.task;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import demo.scorch.event.EventType;
 import demo.scorch.machine.Status;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -27,11 +26,16 @@ import org.springframework.context.ApplicationContextAware;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.statemachine.ExtendedState;
-import org.springframework.statemachine.StateMachine;
 import org.springframework.statemachine.annotation.WithStateMachine;
 
 import java.io.Serializable;
 
+/**
+ * The {@link TaskStateMachine} is the task management module that performs
+ * actions in response to changes in state.
+ *
+ * @author Kenny Bastani
+ */
 @WithStateMachine(name = "taskMachine")
 @AutoConfigureBefore
 @Order(Ordered.LOWEST_PRECEDENCE)
@@ -41,47 +45,20 @@ public class TaskStateMachine implements Serializable, ApplicationContextAware {
     private final static Log log = LogFactory.getLog(TaskStateMachine.class);
     private ApplicationContext applicationContext;
 
-    public void run(String id) {
-        StateMachine<Status, EventType> stateMachine = getStateMachineById(id);
-        if (stateMachine != null) {
-            stateMachine.sendEvent(EventType.RUN);
-        }
-    }
-
-    private StateMachine<Status, EventType> getStateMachineById(String id) {
-        Object stateMachineBean = applicationContext.getBean(id);
-        StateMachine<Status, EventType> stateMachine = null;
-        if (stateMachineBean != null && stateMachineBean instanceof StateMachine) {
-            stateMachine = (StateMachine<Status, EventType>) stateMachineBean;
-        }
-        return stateMachine;
-    }
-
-    public void fix(String id) {
-        StateMachine<Status, EventType> stateMachine = getStateMachineById(id);
-        if (stateMachine != null)
-            stateMachine.sendEvent(EventType.FIX);
-    }
-
     public void init() {
-    }
 
-    public void fail(String id) {
-    }
-
-    public void createTask(Task task) {
     }
 
     @TaskStateMachineConfiguration.StatesOnTransition(target = Status.RUNNING)
     public void taskBegin(ExtendedState extendedState) {
-        runTask(extendedState.get("id", String.class), extendedState);
+        // Perform action associated with state change to running
+        log.info("Task state transitioned to RUNNING");
     }
 
     @TaskStateMachineConfiguration.StatesOnTransition(target = Status.FINISHED)
     public void taskFinish(ExtendedState extendedState) {
-    }
-
-    private void runTask(String id, ExtendedState extendedState) {
+        // Perform action associated with state change to finished
+        log.info("Task state transitioned to FINISHED");
     }
 
     @Override

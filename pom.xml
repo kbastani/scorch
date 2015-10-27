@@ -21,13 +21,23 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <java.version>1.8</java.version>
+        <spring-cloud-starter-hystrix.version>1.1.0.BUILD-SNAPSHOT</spring-cloud-starter-hystrix.version>
+        <spring-cloud-starter-bus-amqp.version>1.1.0.BUILD-SNAPSHOT</spring-cloud-starter-bus-amqp.version>
+        <spring-statemachine-core.version>1.0.0.BUILD-SNAPSHOT</spring-statemachine-core.version>
+        <zookeeper.version>3.4.6</zookeeper.version>
+        <lombok.version>1.16.6</lombok.version>
     </properties>
 
     <dependencies>
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-hystrix</artifactId>
-            <version>1.1.0.BUILD-SNAPSHOT</version>
+            <version>${spring-cloud-starter-hystrix.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-bus-amqp</artifactId>
+            <version>${spring-cloud-starter-bus-amqp.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -49,7 +59,7 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>1.16.6</version>
+            <version>${lombok.version}</version>
         </dependency>
 
         <dependency>
@@ -60,17 +70,17 @@
         <dependency>
             <groupId>org.springframework.statemachine</groupId>
             <artifactId>spring-statemachine-core</artifactId>
-            <version>1.0.0.BUILD-SNAPSHOT</version>
+            <version>${spring-statemachine-core.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-zookeeper-discovery</artifactId>
-            <version>1.0.0.BUILD-SNAPSHOT</version>
+            <version>${spring-statemachine-core.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.zookeeper</groupId>
             <artifactId>zookeeper</artifactId>
-            <version>3.4.6</version>
+            <version>${zookeeper.version}</version>
         </dependency>
     </dependencies>
 
@@ -119,5 +129,4 @@
             </snapshots>
         </pluginRepository>
     </pluginRepositories>
-
 </project>

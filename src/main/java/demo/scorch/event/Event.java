@@ -1,6 +1,7 @@
 package demo.scorch.event;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import demo.scorch.audit.AbstractEntity;
 import demo.scorch.job.Job;
 import demo.scorch.zookeeper.Distributed;
 import lombok.*;
@@ -16,7 +17,7 @@ import lombok.*;
 @ToString
 @NoArgsConstructor
 @JsonAutoDetect
-public class Event implements Distributed {
+public class Event extends AbstractEntity implements Distributed {
 
     private String id;
 

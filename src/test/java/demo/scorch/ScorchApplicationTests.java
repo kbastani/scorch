@@ -8,6 +8,7 @@ import demo.scorch.machine.Status;
 import demo.scorch.stage.Stage;
 import demo.scorch.task.Task;
 import demo.scorch.zookeeper.ZookeeperClient;
+import org.apache.zookeeper.KeeperException;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -20,6 +21,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.test.context.web.WebAppConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.util.Assert;
 import org.springframework.web.context.WebApplicationContext;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -34,10 +36,10 @@ public class ScorchApplicationTests {
     private Logger log = LoggerFactory.getLogger(ScorchApplicationTests.class);
 
     @Autowired
-    ObjectMapper objectMapper;
+    private ObjectMapper objectMapper;
 
     @Autowired
-    ZookeeperClient zookeeperClient;
+    private ZookeeperClient zookeeperClient;
 
     @Autowired
     private WebApplicationContext webApplicationContext;
@@ -48,9 +50,34 @@ public class ScorchApplicationTests {
         this.mockMvc = webAppContextSetup(webApplicationContext).build();
     }
 
-	@Test
-	public void contextLoads() {
-	}
+    @Test
+    public void contextLoads() {
+    }
+
+    @Test
+    public void createJob() throws Exception {
+        Job job = createAndGetJob();
+        log.info(String.format("Job created: %s", job.toString()));
+        Assert.notNull(job);
+
+        // Clean up
+        zookeeperClient.delete(Job.class, job.getId());
+    }
+
+    private Job createAndGetJob() throws Exception {
+        Job job = new Job();
+
+        log.info("Creating job...");
+
+        String createdJobs = mockMvc.perform(post("/v1/job/jobs")
+                .content(objectMapper.writeValueAsString(job))
+                .contentType(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+
+        job = objectMapper.readValue(createdJobs, Job.class);
+
+        return job;
+    }
 
     @Test
     public void createTask() throws Exception {
@@ -85,12 +112,36 @@ public class ScorchApplicationTests {
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
 
         Task task = objectMapper.readValue(taskResult, Task.class);
+        String eventResult = sendTaskEvent(task, EventType.RUN);
+        Assert.isTrue(Boolean.parseBoolean(eventResult));
+        eventResult = sendTaskEvent(task, EventType.END);
+        Assert.isTrue(Boolean.parseBoolean(eventResult));
+        eventResult = sendTaskEvent(task, EventType.CONTINUE);
+        Assert.isTrue(Boolean.parseBoolean(eventResult));
+    }
 
+    private void cleanUp(Job job, Stage stage, Task task) throws KeeperException, InterruptedException {
+        // Clean up
+        zookeeperClient.delete(Job.class, job.getId());
+        zookeeperClient.delete(Stage.class, stage.getId());
+        zookeeperClient.delete(Task.class, task.getId());
+        zookeeperClient.getZooKeeper()
+            .getChildren("/scorch/event", false)
+            .forEach(event -> zookeeperClient.delete(Event.class, event));
+    }
+
+    private String sendTaskEvent(Task task, EventType runEvent) throws Exception {
         Event event = new Event();
-        event.setEventType(EventType.RUN);
+        event.setEventType(runEvent);
         event.setTargetId(task.getId());
-        event.setId("");
-        log.info(objectMapper.writeValueAsString(event));
+        event.setId("0");
+
+        log.info("Sending event: " + objectMapper.writeValueAsString(event));
+
+        return mockMvc.perform(post("/v1/event/events", task.getId())
+                .content(objectMapper.writeValueAsString(event))
+                .contentType(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
     }
 
     @After

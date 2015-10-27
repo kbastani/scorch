@@ -157,6 +157,11 @@ public class ZookeeperClient implements AutoCloseable {
         return zookeeperHost;
     }
 
+    /**
+     * Set the ZooKeeper host connection details.
+     *
+     * @param zookeeperHost is the connection string for the ZooKeeper host.
+     */
     public void setZookeeperHost(String zookeeperHost) {
         this.zookeeperHost = zookeeperHost;
     }
@@ -266,6 +271,25 @@ public class ZookeeperClient implements AutoCloseable {
         }
 
         return obj;
+    }
+
+    /**
+     * Delete a distributed object from the {@link ZooKeeper} cluster.
+     *
+     * @param clazz is the class that the object should be deserialized to
+     * @param key   is the key of the object to get from the {@link ZooKeeper} cluster
+     * @param <T>   is the {@link Distributed} object type to get
+     */
+    public <T extends Distributed> void delete(Class<T> clazz, String key) {
+        if (connect()) {
+            // Get the distributed object's zookeeper path
+            String elementPath = String.format("%s/%s/%s", root, clazz.getSimpleName().toLowerCase(), key);
+            try {
+                zooKeeper.delete(elementPath, -1);
+            } catch (KeeperException | InterruptedException e) {
+                log.error(e.getMessage(), e);
+            }
+        }
     }
 
     /**
