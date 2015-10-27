@@ -1,10 +1,12 @@
 package demo.scorch.job;
 
+import demo.scorch.event.Event;
+import demo.scorch.event.EventType;
 import demo.scorch.machine.Status;
 import demo.scorch.stage.Stage;
-import demo.scorch.task.StateMachineRepository;
 import demo.scorch.task.Task;
 import demo.scorch.zookeeper.ZookeeperClient;
+import org.apache.zookeeper.CreateMode;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,7 +52,15 @@ public class JobServiceImpl implements JobService {
             s.getTasks().forEach(t -> {
                 t.setStatus(Status.PENDING);
                 zookeeperClient.save(t);
-                StateMachineRepository.getStateMachineBean(t.getId()).start();
+
+                // Create a new event to start the state machine
+                Event event = new Event();
+                event.setEventType(EventType.BEGIN);
+                event.setTargetId(t.getId());
+                event.setId("0");
+
+                // Send the event to ZooKeeper
+                zookeeperClient.save(event, CreateMode.PERSISTENT_SEQUENTIAL);
             });
         });
 

@@ -1,12 +1,15 @@
 package demo.scorch.task;
 
 import demo.scorch.event.Event;
+import demo.scorch.event.EventType;
+import demo.scorch.machine.Status;
 import demo.scorch.zookeeper.ZookeeperClient;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.zookeeper.KeeperException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.task.TaskExecutor;
+import org.springframework.statemachine.StateMachine;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -35,7 +38,7 @@ public class TaskReplicator implements AutoCloseable {
      * Create a new instance of the {@link TaskReplicator} module to keep the state
      * of a cluster of scorch nodes consistent.
      *
-     * @param taskExecutor is an executor for running the background replicator process
+     * @param taskExecutor    is an executor for running the background replicator process
      * @param zookeeperClient is the client for {@link org.apache.zookeeper.ZooKeeper}
      */
     @Autowired
@@ -82,19 +85,24 @@ public class TaskReplicator implements AutoCloseable {
                     for (String path : list) {
                         Integer min = new Integer(path.substring(1));
 
-                        synchronized (eventPosition) {
-                            if (eventPosition < min)
-                                eventPosition = min;
-                        }
+                        if (eventPosition < min)
+                            eventPosition = min;
 
                         log.info("Replicating event: " + path);
 
                         // Get the event data
                         Event event = zookeeperClient.get(Event.class, path, true);
 
-                        // Add event to state machine queue
-                        StateMachineRepository.getTaskListener(event.getTargetId())
-                                .getQueue().add(event.getEventType());
+                        // Initialize the state machine or submit an event to the queue
+                        if (event.getEventType() == EventType.BEGIN) {
+                            StateMachine<Status, EventType> stateMachine = StateMachineRepository
+                                    .getStateMachineBean(event.getTargetId());
+                            stateMachine.start();
+                        } else {
+                            // Add event to state machine queue
+                            StateMachineRepository.getTaskListener(event.getTargetId())
+                                    .getQueue().add(event.getEventType());
+                        }
 
                         queue.add(path);
                     }
