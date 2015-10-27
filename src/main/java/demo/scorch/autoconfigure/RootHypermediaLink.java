@@ -1,6 +1,5 @@
 package demo.scorch.autoconfigure;
 
-import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Controller;
 
 import java.lang.annotation.*;
@@ -15,7 +14,6 @@ import java.lang.annotation.*;
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-@Component
 public @interface RootHypermediaLink {
     /**
      * The name of the link that will be included in the hypermedia enabled

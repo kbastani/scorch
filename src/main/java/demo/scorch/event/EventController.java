@@ -25,7 +25,7 @@ import java.util.Optional;
 @RequestMapping(value = "/v1/event")
 public class EventController extends HypermediaController {
 
-    EventService eventService;
+    private EventService eventService;
 
     @Autowired
     public EventController(EventService eventService) {

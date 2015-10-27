@@ -11,8 +11,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.task.TaskExecutor;
-import org.springframework.data.redis.connection.RedisConnectionFactory;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 @SpringCloudApplication
@@ -22,13 +20,6 @@ public class ScorchApplication {
 
     public static void main(String[] args) {
         new SpringApplicationBuilder(ScorchApplication.class).web(true).run(args);
-    }
-
-    @Bean
-    public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
-        RedisTemplate<String, Object> redisTemplate = new RedisTemplate<>();
-        redisTemplate.setConnectionFactory(connectionFactory);
-        return redisTemplate;
     }
 
     @Bean(name = "taskExecutor")

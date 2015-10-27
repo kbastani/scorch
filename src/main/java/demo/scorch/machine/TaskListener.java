@@ -21,7 +21,7 @@ public class TaskListener extends StateMachineListenerAdapter<Status, EventType>
     final Object lock = new Object();
     public boolean ready = false;
     private String taskId;
-    ZookeeperClient zookeeperClient;
+    private ZookeeperClient zookeeperClient;
     final ConcurrentLinkedQueue<EventType> queue = new ConcurrentLinkedQueue<EventType>();
     private final static Log log = LogFactory.getLog(StateMachineListenerAdapter.class);
 

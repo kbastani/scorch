@@ -1,15 +1,11 @@
 package demo.scorch.job;
 
-import com.fatboyindustrial.gsonjodatime.Converters;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import demo.scorch.machine.Status;
 import demo.scorch.stage.Stage;
 import demo.scorch.task.StateMachineRepository;
 import demo.scorch.task.Task;
 import demo.scorch.zookeeper.ZookeeperClient;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.Assert;
@@ -22,14 +18,10 @@ import java.util.stream.Collectors;
 public class JobServiceImpl implements JobService {
 
     private ZookeeperClient zookeeperClient;
-    private RedisTemplate<String, Object> redisTemplate;
-    final Gson gson = Converters.registerDateTime(new GsonBuilder()).create();
 
     @Autowired
-    public JobServiceImpl(ZookeeperClient zookeeperClient,
-                          RedisTemplate<String, Object> redisTemplate) {
+    public JobServiceImpl(ZookeeperClient zookeeperClient) {
         this.zookeeperClient = zookeeperClient;
-        this.redisTemplate = redisTemplate;
     }
 
     @Override
@@ -50,9 +42,6 @@ public class JobServiceImpl implements JobService {
      */
     @Override
     public Job createJob(Job job) {
-        // Save the job to redis
-        addJob(job.getId(), job);
-
         // Save job, stages, and tasks to zookeeper
         zookeeperClient.save(job);
         job.getStages().forEach(s -> {
@@ -68,12 +57,6 @@ public class JobServiceImpl implements JobService {
         return job;
     }
 
-    public void addJob(String jobId, Job object) {
-        if (!redisTemplate.opsForValue().setIfAbsent(jobId, gson.toJson(object))) {
-            throw new IllegalArgumentException("Job with id already exists...");
-        }
-    }
-
     /**
      * Get a distributed {@link Job}.
      *
@@ -84,15 +67,6 @@ public class JobServiceImpl implements JobService {
     public Job getJob(String id) {
         // Job job = getFromStore(id);
         return zookeeperClient.get(Job.class, id);
-    }
-
-    private Job getFromStore(String id) {
-        Job job = gson.fromJson(redisTemplate.opsForValue().get(id).toString(), Job.class);
-
-        if (job == null) {
-            redisTemplate.opsForValue().getAndSet(id, job);
-        }
-        return job;
     }
 
     /**

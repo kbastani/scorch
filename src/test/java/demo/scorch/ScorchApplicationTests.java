@@ -1,8 +1,6 @@
 package demo.scorch;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import demo.scorch.event.Event;
 import demo.scorch.event.EventType;
 import demo.scorch.job.Job;
@@ -23,8 +21,6 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.test.context.web.WebAppConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.context.WebApplicationContext;
-
-import java.io.IOException;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -105,10 +101,4 @@ public class ScorchApplicationTests {
             log.error(e.getMessage(), e);
         }
     }
-
-    protected String json(Object o) throws IOException {
-        Gson gson = new GsonBuilder().setPrettyPrinting().create();
-        return gson.toJson(o);
-    }
-
 }

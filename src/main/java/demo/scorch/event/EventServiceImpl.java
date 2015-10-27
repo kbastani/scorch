@@ -5,7 +5,6 @@ import demo.scorch.zookeeper.ZookeeperClient;
 import org.apache.zookeeper.CreateMode;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -16,7 +15,6 @@ import java.util.List;
  * @author Kenny Bastani
  */
 @Service
-@Transactional
 public class EventServiceImpl implements EventService {
     private ZookeeperClient zookeeperClient;
 

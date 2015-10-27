@@ -18,8 +18,6 @@ public class ZookeeperWatcher implements Watcher {
 
     private final static Log log = LogFactory.getLog(ZookeeperWatcher.class);
 
-
-
     @Override
     public void process(WatchedEvent event) {
         log.info(Arrays.asList(event, event.getPath(), event.getState(), event.getType()));

@@ -49,7 +49,7 @@ public class TaskStateMachineConfiguration {
     @Configuration
     @Order(Ordered.HIGHEST_PRECEDENCE)
     @EnableStateMachineFactory(name = "taskMachine")
-    static class TaskStateMachineConfig extends EnumStateMachineConfigurerAdapter<Status, EventType> {
+    public static class TaskStateMachineConfig extends EnumStateMachineConfigurerAdapter<Status, EventType> {
 
         @Override
         public void configure(StateMachineStateConfigurer<Status, EventType> states) throws Exception {

@@ -1,11 +1,11 @@
 package demo.scorch.zookeeper;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import com.fatboyindustrial.gsonjodatime.*;
 import org.apache.zookeeper.*;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -28,7 +28,9 @@ public class ZookeeperClient implements AutoCloseable {
     private String applicationName;
 
     private final static Log log = LogFactory.getLog(ZookeeperClient.class);
-    final Gson gson = Converters.registerDateTime(new GsonBuilder()).create();
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     private boolean initialized;
     private ZooKeeper zooKeeper;
@@ -128,7 +130,7 @@ public class ZookeeperClient implements AutoCloseable {
      * @return the managed {@link ZooKeeper} client
      */
     public ZooKeeper getZooKeeper() {
-        if(connect()) {
+        if (connect()) {
             return zooKeeper;
         } else {
             return null;
@@ -177,7 +179,13 @@ public class ZookeeperClient implements AutoCloseable {
     public <T extends Distributed> boolean save(T object, CreateMode createMode) {
         boolean success = false;
         if (connect()) {
-            byte[] data = gson.toJson(object).getBytes();
+            byte[] data = new byte[0];
+
+            try {
+                data = objectMapper.writeValueAsString(object).getBytes();
+            } catch (JsonProcessingException e) {
+                log.error(e);
+            }
 
             // Get the distributed object's zookeeper path
             String elementPath = String.format("%s/%s/%s", root,
@@ -217,7 +225,11 @@ public class ZookeeperClient implements AutoCloseable {
 
             try {
                 // Create a new version of the zookeeper distributed object
-                obj = gson.fromJson(new String(zooKeeper.getData(elementPath, zookeeperWatcher, null)), clazz);
+                try {
+                    obj = objectMapper.readValue(new String(zooKeeper.getData(elementPath, zookeeperWatcher, null)), clazz);
+                } catch (IOException e) {
+                    log.error(e);
+                }
             } catch (KeeperException | InterruptedException e) {
                 log.error(e.getMessage(), e);
             }
@@ -243,7 +255,11 @@ public class ZookeeperClient implements AutoCloseable {
 
             try {
                 // Create a new version of the zookeeper distributed object
-                obj = gson.fromJson(new String(zooKeeper.getData(elementPath, watch ? zookeeperWatcher : null, null)), clazz);
+                try {
+                    obj = objectMapper.readValue(new String(zooKeeper.getData(elementPath, watch ? zookeeperWatcher : null, null)), clazz);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
             } catch (KeeperException | InterruptedException e) {
                 log.error(e.getMessage(), e);
             }

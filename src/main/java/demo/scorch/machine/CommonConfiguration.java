@@ -15,7 +15,6 @@
  */
 package demo.scorch.machine;
 
-import demo.scorch.zookeeper.ZookeeperClient;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.context.ApplicationListener;
@@ -33,17 +32,14 @@ public class CommonConfiguration {
     @Configuration
     static class ApplicationConfig {
         @Bean
-        public TestEventListener testEventListener(ZookeeperClient zookeeperClient) {
-            return new TestEventListener(zookeeperClient);
+        public TestEventListener testEventListener() {
+            return new TestEventListener();
         }
     }
 
     static class TestEventListener implements ApplicationListener<StateMachineEvent> {
 
-        private ZookeeperClient zookeeperClient;
-
-        public TestEventListener(ZookeeperClient zookeeperClient) {
-            this.zookeeperClient = zookeeperClient;
+        public TestEventListener() {
         }
 
         @Override
@@ -56,7 +52,5 @@ public class CommonConfiguration {
                 log.info("Exit state " + e.getState().getId());
             }
         }
-
     }
-
 }
