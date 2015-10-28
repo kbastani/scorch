@@ -23,7 +23,7 @@ spring:
       basePath: "/v1/repositories"
   cloud:
     zookeeper:
-      connect-string: "192.168.59.103:2181"
+      connect-string: "192.168.99.100:2181"
       dependencies:
         scorch:
           path: "/scorch"
@@ -31,4 +31,4 @@ spring:
           contentTypeTemplate: "application/json"
           version: v1
   rabbitmq:
-    addresses: "amqp://192.168.59.103:5672"
+    addresses: "amqp://192.168.99.100:5672"

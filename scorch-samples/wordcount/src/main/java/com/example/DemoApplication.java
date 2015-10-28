@@ -33,7 +33,6 @@ import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.cloud.netflix.feign.EnableFeignClients;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.data.redis.connection.StringRedisConnection;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
 
@@ -99,7 +98,6 @@ public class DemoApplication {
             sentences.add("The twenty-fifth word in a document is interesting");
             sentences.add("The twenty-sixth word in a document is interesting");
 
-
             Stage stage = new Stage();
             stage.setStatus(Status.PENDING);
             stage.setTasks(sentences.stream().map(a -> new Task(false, Status.PENDING)).collect(Collectors.toList()));
@@ -109,33 +107,34 @@ public class DemoApplication {
             List<Task> tasks = job.getStages().get(0).getTasks();
 
             for (Task task : tasks) {
+
+                // Create an action for counting the number of words in a sentence
                 TaskRepository.taskActionCache.put(task.getId(), new Run<String, Integer>(task.getId(), a ->
-                        a.map(sentence -> Arrays.asList(sentence.getT1().split("\\s")).stream())
+                        a.map(sentence -> Arrays.asList(sentence.getT1().toLowerCase().replace("\\W", "")
+                                .split("\\s")).stream())
                                 .flatMap(word -> word)
-                                .map(word -> new Tuple<>(word, 1))));
+                                .map(word -> new Tuple<String, Integer>(word, 1)), redisTemplate, objectMapper));
 
                 redisTemplate.execute(
                         (RedisCallback) redisConnection -> {
                             try {
-                                ((StringRedisConnection) redisConnection).set(task.getId(), objectMapper.writeValueAsString(
+                                redisConnection.set(task.getId().getBytes(), objectMapper.writeValueAsString(
                                         Collections.singletonList(sentences.remove())
                                                 .stream()
                                                 .map(sentence ->
                                                         new Tuple<>(sentence, 0))
-                                                .collect(Collectors.toSet())));
+                                                .collect(Collectors.toSet())).getBytes());
                             } catch (JsonProcessingException e) {
                                 log.error(e);
                             }
 
                             return task.getId();
                         });
-
-
-                log.info(job);
-
-                tasks.forEach(task1 -> eventClient.sendEvent(new Event("0", EventType.RUN, task1.getId())));
-                tasks.forEach(task1 -> eventClient.sendEvent(new Event("0", EventType.END, task1.getId())));
             }
+            log.info(job);
+
+            tasks.forEach(task1 -> eventClient.sendEvent(new Event("0", EventType.RUN, task1.getId())));
+            tasks.forEach(task1 -> eventClient.sendEvent(new Event("0", EventType.END, task1.getId())));
         };
     }
 
@@ -170,8 +169,8 @@ public class DemoApplication {
     }
 
     @Bean
-    Receiver receiver(ObjectMapper objectMapper) {
-        return new Receiver(objectMapper);
+    Receiver receiver(ObjectMapper objectMapper, EventClient eventClient) {
+        return new Receiver(objectMapper, eventClient);
     }
 
     @Bean
