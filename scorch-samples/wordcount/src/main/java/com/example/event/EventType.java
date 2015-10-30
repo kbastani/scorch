@@ -16,7 +16,8 @@ public enum EventType {
     RUN,
     FALLBACK,
     CONTINUE,
-    FIX;
+    FIX,
+    STOP;
 
     @Override
     public String toString() {

@@ -2,9 +2,7 @@ package com.example;
 
 import com.example.action.Run;
 import com.example.action.Tuple;
-import com.example.event.Event;
 import com.example.event.EventClient;
-import com.example.event.EventType;
 import com.example.job.Job;
 import com.example.job.JobClient;
 import com.example.job.Status;
@@ -41,6 +39,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.stream.Collectors;
+
+import static java.util.stream.Collectors.groupingBy;
 
 @EnableDiscoveryClient
 @Configuration
@@ -98,13 +98,15 @@ public class DemoApplication {
             sentences.add("The twenty-fifth word in a document is interesting");
             sentences.add("The twenty-sixth word in a document is interesting");
 
-            Stage stage = new Stage();
-            stage.setStatus(Status.PENDING);
-            stage.setTasks(sentences.stream().map(a -> new Task(false, Status.PENDING)).collect(Collectors.toList()));
-
-            Job job = jobClient.createJob(new Job(Collections.singletonList(stage)));
+            Stage stage1 = new Stage();
+            Stage stage2 = new Stage();
+            stage1.setStatus(Status.PENDING);
+            stage1.setTasks(sentences.stream().map(a -> new Task(false, Status.PENDING)).collect(Collectors.toList()));
+            stage2.setTasks(Collections.singletonList(new Task(false, Status.PENDING)));
+            Job job = jobClient.createJob(new Job(Collections.singletonList(stage1)));
 
             List<Task> tasks = job.getStages().get(0).getTasks();
+            List<Task> tasks2 = job.getStages().get(1).getTasks();
 
             for (Task task : tasks) {
 
@@ -115,6 +117,7 @@ public class DemoApplication {
                                 .flatMap(word -> word)
                                 .map(word -> new Tuple<String, Integer>(word, 1)), redisTemplate, objectMapper));
 
+                // Set initial data for task
                 redisTemplate.execute(
                         (RedisCallback) redisConnection -> {
                             try {
@@ -131,11 +134,29 @@ public class DemoApplication {
                             return task.getId();
                         });
             }
-            log.info(job);
 
-            tasks.forEach(task1 -> eventClient.sendEvent(new Event("0", EventType.RUN, task1.getId())));
-            tasks.forEach(task1 -> eventClient.sendEvent(new Event("0", EventType.END, task1.getId())));
+            for (Task task : tasks2) {
+
+                // Create an action for counting the number of words in a sentence
+                TaskRepository.taskActionCache.put(task.getId(), new Run<String, Integer>(task.getId(), a ->
+                {
+                    
+                }, redisTemplate, objectMapper));
+
+                // Set initial data for task
+                redisTemplate.execute(
+                        (RedisCallback) redisConnection -> {
+                            try {
+                                redisConnection.set(task.getId().getBytes(), objectMapper.writeValueAsString(tasks.stream().map(Task::getId)).getBytes());
+                            } catch (JsonProcessingException e) {
+                                log.error(e);
+                            }
+                            return task.getId();
+                        });
+            }
         };
+
+
     }
 
     @Bean
@@ -170,7 +191,7 @@ public class DemoApplication {
 
     @Bean
     Receiver receiver(ObjectMapper objectMapper, EventClient eventClient) {
-        return new Receiver(objectMapper, eventClient);
+        return new Receiver(objectMapper, eventClient, redisTemplate);
     }
 
     @Bean

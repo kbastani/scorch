@@ -8,11 +8,11 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.zookeeper.KeeperException;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.task.TaskExecutor;
 import org.springframework.statemachine.StateMachine;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.stream.Collectors;
 
@@ -27,7 +27,6 @@ import java.util.stream.Collectors;
 @Component
 public class TaskReplicator implements AutoCloseable {
 
-    private final TaskExecutor taskExecutor;
     private final ZookeeperClient zookeeperClient;
     private final ConcurrentLinkedQueue<String> queue = new ConcurrentLinkedQueue<>();
     private static Integer eventPosition = -1;
@@ -38,12 +37,10 @@ public class TaskReplicator implements AutoCloseable {
      * Create a new instance of the {@link TaskReplicator} module to keep the state
      * of a cluster of scorch nodes consistent.
      *
-     * @param taskExecutor    is an executor for running the background replicator process
      * @param zookeeperClient is the client for {@link org.apache.zookeeper.ZooKeeper}
      */
     @Autowired
-    public TaskReplicator(TaskExecutor taskExecutor, ZookeeperClient zookeeperClient) {
-        this.taskExecutor = taskExecutor;
+    public TaskReplicator(ZookeeperClient zookeeperClient) {
         this.zookeeperClient = zookeeperClient;
     }
 
@@ -51,13 +48,14 @@ public class TaskReplicator implements AutoCloseable {
      * The initialization method for the bean.
      */
     public void init() {
-        taskExecutor.execute(() -> {
-            try {
-                consume();
-            } catch (KeeperException | InterruptedException e) {
-                log.error(e);
-            }
-        });
+//        taskExecutor.execute(() -> {
+//            try {
+//                consume();
+//            } catch (KeeperException | InterruptedException e) {
+//                log.error(e);
+//            }
+//        });
+
     }
 
     /**
@@ -67,19 +65,25 @@ public class TaskReplicator implements AutoCloseable {
      * @throws KeeperException
      * @throws InterruptedException
      */
-    private void consume() throws KeeperException, InterruptedException {
+    public void consume() throws KeeperException, InterruptedException {
         String eventsPath = "/scorch/event";
 
-        running = true;
-
-        // Get the first element available
-        while (running) {
+        if (!running) {
+            running = true;
+            // Get the first element available
             try {
                 List<String> list = zookeeperClient.getZooKeeper()
                         .getChildren(eventsPath, true)
                         .parallelStream()
                         .filter(f -> !queue.contains(f))
                         .collect(Collectors.toList());
+
+                list.sort((a, b) -> {
+                    Integer aInt = new Integer(a.substring(1));
+                    Integer bInt = new Integer(b.substring(1));
+                    return aInt > bInt ? 1 : (Objects.equals(aInt, bInt)) ? 0 : -1;
+                });
+
 
                 if (list.size() > 0) {
                     for (String path : list) {
@@ -91,12 +95,16 @@ public class TaskReplicator implements AutoCloseable {
                         log.info("Replicating event: " + path);
 
                         // Get the event data
-                        Event event = zookeeperClient.get(Event.class, path, true);
+                        Event event = zookeeperClient.get(Event.class, path, false);
 
                         // Initialize the state machine or submit an event to the queue
                         if (event.getEventType() == EventType.BEGIN) {
                             StateMachine<Status, EventType> stateMachine = StateMachineRepository
                                     .getStateMachineBean(event.getTargetId());
+                            stateMachine
+                                    .getExtendedState()
+                                    .getVariables()
+                                    .put(String.format("%s--%s", event.getTargetId(), Status.PENDING), true);
                             stateMachine.start();
                         } else {
                             // Add event to state machine queue
@@ -110,6 +118,7 @@ public class TaskReplicator implements AutoCloseable {
             } catch (Exception ex) {
                 log.info(ex);
             }
+            running = false;
         }
     }
 

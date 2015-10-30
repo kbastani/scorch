@@ -2,6 +2,7 @@ package demo.scorch.zookeeper;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import demo.scorch.task.TaskReplicator;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.zookeeper.*;
@@ -32,6 +33,9 @@ public class ZookeeperClient implements AutoCloseable {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private TaskReplicator taskReplicator;
+
     private boolean initialized;
     private ZooKeeper zooKeeper;
     private ZookeeperWatcher zookeeperWatcher;
@@ -41,7 +45,7 @@ public class ZookeeperClient implements AutoCloseable {
      * The bean's initialization method.
      */
     private void init() {
-        zookeeperWatcher = new ZookeeperWatcher();
+        zookeeperWatcher = new ZookeeperWatcher(taskReplicator);
         if (reconnect(zookeeperHost)) {
             // Get or create the root barrier
             getOrCreateRoot();
@@ -263,10 +267,10 @@ public class ZookeeperClient implements AutoCloseable {
                 try {
                     obj = objectMapper.readValue(new String(zooKeeper.getData(elementPath, watch ? zookeeperWatcher : null, null)), clazz);
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    log.error(e);
                 }
             } catch (KeeperException | InterruptedException e) {
-                log.error(e.getMessage(), e);
+                log.error(e);
             }
         }
 

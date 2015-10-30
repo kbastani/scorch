@@ -77,7 +77,12 @@ public class TaskStateMachineConfiguration {
                     .withExternal()
                     .source(Status.RUNNING)
                     .target(Status.ERROR)
-                    .event(EventType.CANCEL);
+                    .event(EventType.CANCEL)
+                    .and()
+                    .withExternal()
+                    .source(Status.FINISHED)
+                    .target(Status.SUCCESS)
+                    .event(EventType.STOP);
         }
 
         @Bean(name = StateMachineSystemConstants.TASK_EXECUTOR_BEAN_NAME)

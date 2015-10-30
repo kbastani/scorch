@@ -7,6 +7,7 @@ import demo.scorch.zookeeper.ZookeeperClient;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.core.task.TaskExecutor;
+import org.springframework.statemachine.StateMachine;
 import org.springframework.statemachine.listener.StateMachineListenerAdapter;
 import org.springframework.statemachine.state.State;
 
@@ -18,6 +19,7 @@ public class TaskListener extends StateMachineListenerAdapter<Status, EventType>
     private final TaskExecutor taskExecutor;
     private String taskId;
     private ZookeeperClient zookeeperClient;
+    private boolean running = true;
 
     private final static Log log = LogFactory.getLog(StateMachineListenerAdapter.class);
 
@@ -27,8 +29,25 @@ public class TaskListener extends StateMachineListenerAdapter<Status, EventType>
         this.taskExecutor = (TaskExecutor) StateMachineRepository.applicationContext.getBean("taskExecutor");
     }
 
+    @Override
+    public void stateMachineStarted(StateMachine<Status, EventType> stateMachine) {
+        running = true;
+    }
+
     public ConcurrentLinkedQueue<EventType> getQueue() {
         return queue;
+    }
+
+    @Override
+    public void stateEntered(State<Status, EventType> state) {
+        if(state.getId() == Status.SUCCESS) {
+            StateMachineRepository.getStateMachineBean(taskId).stop();
+        }
+    }
+
+    @Override
+    public void stateMachineStopped(StateMachine<Status, EventType> stateMachine) {
+        running = false;
     }
 
     @Override
@@ -37,9 +56,13 @@ public class TaskListener extends StateMachineListenerAdapter<Status, EventType>
 
         // If the task is rebuilding state, do not save state to ZooKeeper
         if (!zookeeperClient.get(Task.class, task.getId()).getStatus().equals(to.getId()) &&
-                (from != null ? from.getId() : Status.READY) == task.getStatus()) {
+                (from != null ? from.getId() : Status.PENDING) == task.getStatus()) {
             task.setStatus(to.getId());
             zookeeperClient.save(task);
+            StateMachineRepository.getStateMachineBean(taskId)
+                    .getExtendedState()
+                    .getVariables()
+                    .put(String.format("%s--%s", task.getId(), to.getId()), true);
         }
 
         if (!queue.isEmpty()) {
@@ -48,9 +71,18 @@ public class TaskListener extends StateMachineListenerAdapter<Status, EventType>
             // Watch
             this.taskExecutor.execute(() -> {
                 boolean runOnce = true;
-                while (runOnce) {
+                while (runOnce && running) {
+
                     if (!queue.isEmpty()) {
                         runOnce = !StateMachineRepository.getStateMachineBean(taskId).sendEvent(queue.remove());
+                    }
+
+                    if (runOnce) {
+                        try {
+                            Thread.sleep(300L);
+                        } catch (InterruptedException e) {
+                            log.error(e);
+                        }
                     }
                 }
             });

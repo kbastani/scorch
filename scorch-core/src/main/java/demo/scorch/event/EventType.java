@@ -16,7 +16,8 @@ public enum EventType {
     RUN(DomainType.TASK),
     FALLBACK(DomainType.TASK),
     CONTINUE(DomainType.TASK),
-    FIX(DomainType.TASK);
+    FIX(DomainType.TASK),
+    STOP(DomainType.TASK);
 
     private DomainType domain = null;
 

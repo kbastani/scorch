@@ -1,5 +1,6 @@
 package demo.scorch.job;
 
+import demo.scorch.event.DomainType;
 import demo.scorch.event.Event;
 import demo.scorch.event.EventType;
 import demo.scorch.machine.Status;
@@ -44,25 +45,42 @@ public class JobServiceImpl implements JobService {
      */
     @Override
     public Job createJob(Job job) {
-        // Save job, stages, and tasks to zookeeper
-        zookeeperClient.save(job);
+        // Each job extends a task
+        Task jobTask = new Task(DomainType.JOB);
+        jobTask.setId(job.getId());
+        jobTask.setStatus(Status.PENDING);
+
+
+        // For each of the stages, register tasks
         job.getStages().forEach(s -> {
-            zookeeperClient.save(s);
-            s.setStatus(Status.STARTED);
+            Task stageTask = new Task(DomainType.STAGE);
+            stageTask.setJobId(job.getId());
+            stageTask.setId(s.getId());
+            stageTask.setStatus(Status.PENDING);
+
             s.getTasks().forEach(t -> {
+                t.setStageId(s.getId());
+                t.setJobId(job.getId());
+                t.setType(DomainType.TASK);
                 t.setStatus(Status.PENDING);
                 zookeeperClient.save(t);
-
-                // Create a new event to start the state machine
-                Event event = new Event();
-                event.setEventType(EventType.BEGIN);
-                event.setTargetId(t.getId());
-                event.setId("0");
-
-                // Send the event to ZooKeeper
-                zookeeperClient.save(event, CreateMode.PERSISTENT_SEQUENTIAL);
             });
+
+            zookeeperClient.save(stageTask);
+            zookeeperClient.save(s);
         });
+
+        zookeeperClient.save(job);
+        zookeeperClient.save(jobTask);
+
+        // Create a new event to start the state machine
+        Event event = new Event();
+        event.setEventType(EventType.BEGIN);
+        event.setTargetId(job.getId());
+        event.setId("0");
+
+        // Send the event to ZooKeeper
+        zookeeperClient.save(event, CreateMode.PERSISTENT_SEQUENTIAL);
 
         return job;
     }

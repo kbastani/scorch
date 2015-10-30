@@ -4,11 +4,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import demo.scorch.task.TaskReplicator;
 import demo.scorch.task.TaskStateMachine;
 import demo.scorch.zookeeper.ZookeeperClient;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.apache.zookeeper.KeeperException;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.TopicExchange;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.cloud.client.SpringCloudApplication;
 import org.springframework.context.annotation.Bean;
@@ -27,6 +31,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 public class ScorchApplication {
 
     final static String queueName = "scorch.actions";
+    final Log log = LogFactory.getLog(ScorchApplication.class);
 
     public static void main(String[] args) {
         new SpringApplicationBuilder(ScorchApplication.class).web(true).run(args);
@@ -34,8 +39,8 @@ public class ScorchApplication {
 
     @Bean(name = "taskStateMachine", initMethod = "init")
     @Order(Ordered.HIGHEST_PRECEDENCE)
-    public TaskStateMachine taskStateMachine(RabbitTemplate rabbitTemplate, ObjectMapper objectMapper) {
-        return new TaskStateMachine(rabbitTemplate, objectMapper);
+    public TaskStateMachine taskStateMachine(RabbitTemplate rabbitTemplate, ObjectMapper objectMapper, ZookeeperClient zookeeperClient) {
+        return new TaskStateMachine(rabbitTemplate, objectMapper, zookeeperClient);
     }
 
     @Bean(initMethod = "init")
@@ -46,13 +51,13 @@ public class ScorchApplication {
     @Bean(name = "taskExecutor")
     public TaskExecutor taskExecutor() {
         ThreadPoolTaskExecutor taskExecutor = new ThreadPoolTaskExecutor();
-        taskExecutor.setCorePoolSize(40);
+        taskExecutor.setCorePoolSize(60);
         return taskExecutor;
     }
 
     @Bean(initMethod = "init")
     TaskReplicator taskReplicator(TaskExecutor taskExecutor, ZookeeperClient zookeeperClient) {
-        return new TaskReplicator(taskExecutor, zookeeperClient);
+        return new TaskReplicator(zookeeperClient);
     }
 
     @Bean
@@ -68,6 +73,17 @@ public class ScorchApplication {
     @Bean
     Binding binding(Queue queue, TopicExchange exchange) {
         return BindingBuilder.bind(queue).to(exchange).with(queueName);
+    }
+
+    @Bean
+    CommandLineRunner commandLineRunner(TaskReplicator taskReplicator) {
+        return (args) -> {
+            try {
+                taskReplicator.consume();
+            } catch (KeeperException | InterruptedException e) {
+                log.error(e);
+            }
+        };
     }
 }
 

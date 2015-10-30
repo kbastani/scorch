@@ -1,6 +1,7 @@
 package demo.scorch;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import demo.scorch.event.DomainType;
 import demo.scorch.event.Event;
 import demo.scorch.event.EventType;
 import demo.scorch.job.Job;
@@ -84,7 +85,8 @@ public class ScorchApplicationTests {
 
         Job job = new Job();
         // Create a set of tasks to track a job
-        Stage stage = new Stage(Status.READY);
+        Stage stage = new Stage();
+        stage.setStatus(Status.READY);
 
         job.getStages().add(stage);
 
@@ -107,7 +109,7 @@ public class ScorchApplicationTests {
         log.info(String.format("Adding task to stage with id '%s'...", stageId));
 
         String taskResult = mockMvc.perform(post(String.format("/v1/job/stages/%s/tasks", stageId))
-                .content(objectMapper.writeValueAsString(new Task(false)))
+                .content(objectMapper.writeValueAsString(new Task(DomainType.TASK)))
                 .contentType(MediaType.APPLICATION_JSON_VALUE))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
 
