@@ -83,6 +83,8 @@ public class Receiver {
         if (action != null) {
             List<Tuple<? extends String, ? extends Integer>> collect = action.execute().collect(Collectors.toList());
 
+            log.info(collect);
+
             // Save to redis
             redisTemplate.execute(
                     (RedisCallback) redisConnection -> {

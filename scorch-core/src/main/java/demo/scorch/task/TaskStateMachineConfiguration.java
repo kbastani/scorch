@@ -45,11 +45,20 @@ import java.util.EnumSet;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class TaskStateMachineConfiguration {
 
+    /**
+     * The {@link TaskStateMachineConfig} is the configuration for the state machine of a task.
+     */
     @Configuration
     @Order(Ordered.HIGHEST_PRECEDENCE)
     @EnableStateMachineFactory(name = "taskMachine")
     public static class TaskStateMachineConfig extends EnumStateMachineConfigurerAdapter<Status, EventType> {
 
+        /**
+         * Configure the state machine.
+         *
+         * @param states is the state machine configurer.
+         * @throws Exception is the exception that is thrown during configuration.
+         */
         @Override
         public void configure(StateMachineStateConfigurer<Status, EventType> states) throws Exception {
             states.withStates()
@@ -57,6 +66,12 @@ public class TaskStateMachineConfiguration {
                     .states(EnumSet.allOf(Status.class));
         }
 
+        /**
+         * Configure the procedures of a state machine for a task.
+         *
+         * @param transitions is the transitions for the state machine configurer.
+         * @throws Exception is the exception that is thrown during configuration.
+         */
         @Override
         public void configure(StateMachineTransitionConfigurer<Status, EventType> transitions) throws Exception {
             transitions.withExternal()
@@ -85,6 +100,11 @@ public class TaskStateMachineConfiguration {
                     .event(EventType.STOP);
         }
 
+        /**
+         * Is a bean for a task executor for the state machine.
+         *
+         * @return a {@link TaskExecutor} for the state machine.
+         */
         @Bean(name = StateMachineSystemConstants.TASK_EXECUTOR_BEAN_NAME)
         public TaskExecutor taskExecutor() {
             ThreadPoolTaskExecutor taskExecutor = new ThreadPoolTaskExecutor();
@@ -93,6 +113,9 @@ public class TaskStateMachineConfiguration {
         }
     }
 
+    /**
+     * Is an annotation for transitioning the state of a task's state machine.
+     */
     @Target(ElementType.METHOD)
     @Retention(RetentionPolicy.RUNTIME)
     @OnTransition

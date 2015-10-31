@@ -5,7 +5,7 @@ spring:
     active: local
 ---
 server:
-  port: 8081
+  port: 9191
 hystrix.command.default.execution.isolation.thread.timeoutInMilliseconds: 10000
 ribbon:
   ConnectTimeout: 10000
@@ -25,11 +25,41 @@ spring:
     serialization-inclusion: non_null
   cloud:
     zookeeper:
-      connect-string: "192.168.99.100:2181"
+      connect-string: "192.168.59.103:2181"
       discovery:
-        instanceHost: "192.168.99.100:2181"
-        ipAddress: "192.168.99.100:2181"
+        instanceHost: "192.168.59.103:2181"
+        ipAddress: "192.168.59.103:2181"
         enabled: true
-        connectString: "192.168.99.100:2181"
+        connectString: "192.168.59.103:2181"
   rabbitmq:
-    addresses: "amqp://192.168.99.100:5672"
+    addresses: "amqp://192.168.59.103:5672"
+---
+server:
+  port: 9191
+hystrix.command.default.execution.isolation.thread.timeoutInMilliseconds: 10000
+ribbon:
+  ConnectTimeout: 10000
+  ReadTimeout: 60000
+endpoints:
+  restart:
+    enabled: true
+  shutdown:
+    enabled: true
+  health:
+    sensitive: false
+spring:
+  profiles: docker
+  jackson:
+    serialization:
+      indent_output: true
+    serialization-inclusion: non_null
+  cloud:
+    zookeeper:
+      connect-string: "zookeeper:2181"
+      discovery:
+        instanceHost: "zookeeper:2181"
+        ipAddress: "zookeeper:2181"
+        enabled: true
+        connectString: "zookeeper:2181"
+  rabbitmq:
+    addresses: "amqp://rabbit:5672"

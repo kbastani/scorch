@@ -17,3 +17,10 @@ scorch:
   links:
     - zookeeper
     - rabbit
+scorchclient:
+  image: kbastani/scorch-samples-wordcount
+  hostname: scorchclient
+  links:
+    - zookeeper
+    - rabbit
+    - scorch

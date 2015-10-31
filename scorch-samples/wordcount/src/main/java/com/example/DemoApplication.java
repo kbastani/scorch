@@ -40,8 +40,6 @@ import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.stream.Collectors;
 
-import static java.util.stream.Collectors.groupingBy;
-
 @EnableDiscoveryClient
 @Configuration
 @EnableFeignClients
@@ -99,14 +97,11 @@ public class DemoApplication {
             sentences.add("The twenty-sixth word in a document is interesting");
 
             Stage stage1 = new Stage();
-            Stage stage2 = new Stage();
             stage1.setStatus(Status.PENDING);
             stage1.setTasks(sentences.stream().map(a -> new Task(false, Status.PENDING)).collect(Collectors.toList()));
-            stage2.setTasks(Collections.singletonList(new Task(false, Status.PENDING)));
             Job job = jobClient.createJob(new Job(Collections.singletonList(stage1)));
 
             List<Task> tasks = job.getStages().get(0).getTasks();
-            List<Task> tasks2 = job.getStages().get(1).getTasks();
 
             for (Task task : tasks) {
 
@@ -131,26 +126,6 @@ public class DemoApplication {
                                 log.error(e);
                             }
 
-                            return task.getId();
-                        });
-            }
-
-            for (Task task : tasks2) {
-
-                // Create an action for counting the number of words in a sentence
-                TaskRepository.taskActionCache.put(task.getId(), new Run<String, Integer>(task.getId(), a ->
-                {
-                    
-                }, redisTemplate, objectMapper));
-
-                // Set initial data for task
-                redisTemplate.execute(
-                        (RedisCallback) redisConnection -> {
-                            try {
-                                redisConnection.set(task.getId().getBytes(), objectMapper.writeValueAsString(tasks.stream().map(Task::getId)).getBytes());
-                            } catch (JsonProcessingException e) {
-                                log.error(e);
-                            }
                             return task.getId();
                         });
             }
@@ -198,6 +173,4 @@ public class DemoApplication {
     MessageListenerAdapter listenerAdapter(Receiver receiver) {
         return new MessageListenerAdapter(receiver, "receiveMessage");
     }
-
-
 }
